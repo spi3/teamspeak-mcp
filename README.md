@@ -146,7 +146,7 @@ TEAMSPEAK_SERVER_ID=1
 
 ### 🐳 With Pre-built Docker Image
 
-Add this configuration to your Claude Desktop config file:
+**Option 1: Using environment variables directly (Recommended)**
 
 ```json
 {
@@ -155,9 +155,64 @@ Add this configuration to your Claude Desktop config file:
       "command": "docker",
       "args": [
         "run", "--rm", "-i",
-        "--env-file", "/path/to/your/.env",
+        "-e", "TEAMSPEAK_HOST=your-server.example.com",
+        "-e", "TEAMSPEAK_PORT=10011",
+        "-e", "TEAMSPEAK_USER=mcp_user",
+        "-e", "TEAMSPEAK_PASSWORD=your-password",
+        "-e", "TEAMSPEAK_SERVER_ID=1",
         "ghcr.io/marlburrow/teamspeak-mcp:latest"
       ]
+    }
+  }
+}
+```
+
+**Option 2: Using .env file**
+
+First, create a `.env` file with your credentials:
+```bash
+# Save this as ~/.teamspeak-mcp.env (or any path you prefer)
+TEAMSPEAK_HOST=your-server.example.com
+TEAMSPEAK_PORT=10011
+TEAMSPEAK_USER=mcp_user
+TEAMSPEAK_PASSWORD=your-password
+TEAMSPEAK_SERVER_ID=1
+```
+
+Then configure Claude Desktop:
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--env-file", "/Users/your-username/.teamspeak-mcp.env",
+        "ghcr.io/marlburrow/teamspeak-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
+**Option 3: Using Claude's env section**
+
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "ghcr.io/marlburrow/teamspeak-mcp:latest"
+      ],
+      "env": {
+        "TEAMSPEAK_HOST": "your-server.example.com",
+        "TEAMSPEAK_PORT": "10011",
+        "TEAMSPEAK_USER": "mcp_user",
+        "TEAMSPEAK_PASSWORD": "your-password",
+        "TEAMSPEAK_SERVER_ID": "1"
+      }
     }
   }
 }
@@ -172,7 +227,8 @@ Add this configuration to your Claude Desktop config file:
       "command": "docker",
       "args": [
         "run", "--rm", "-i",
-        "--env-file", "/path/to/your/.env",
+        "-e", "TEAMSPEAK_HOST=your-server.example.com",
+        "-e", "TEAMSPEAK_PASSWORD=your-password",
         "teamspeak-mcp:latest"
       ]
     }
@@ -199,6 +255,8 @@ Add this configuration to your Claude Desktop config file:
   }
 }
 ```
+
+> **⚠️ Important**: Replace all placeholder values (`your-server.example.com`, `your-password`, etc.) with your actual TeamSpeak server credentials.
 
 ## 🚀 Quick Start
 
@@ -303,6 +361,11 @@ This project uses automated GitHub Actions for building and publishing Docker im
    - Ensure you're using Python 3.10 or higher
    - The MCP library requires Python 3.10+
 
+5. **"Docker env file not found"**
+   - Make sure the path to your `.env` file is correct in Claude Desktop config
+   - Or use environment variables directly in the Docker args
+   - Check that file permissions allow Docker to read the file
+
 ### Logs
 ```bash
 # With Docker
@@ -314,4 +377,4 @@ python -m teamspeak_mcp.server --verbose
 
 ## 📝 License
 
-MIT 
+MIT
