@@ -26,8 +26,10 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🔇 **AFK/Silent channel setup** with talk power presets
 - 🎵 Voice control (mute, unmute, kick, ban)
 - 🛡️ **Fine-grained permission management** per channel
+- 🖥️ **Virtual server configuration** (name, description, limits, welcome messages)
+- 👥 **User permission management** (server groups, individual permissions)
 - 📊 Comprehensive server and channel diagnostics
-- ⚙️ **16 powerful tools** for complete TeamSpeak automation
+- ⚙️ **18 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
 
@@ -302,8 +304,14 @@ Once configured, you can use these commands with Claude:
 - *"Get comprehensive details about client 12"* → Uses `client_info_detailed`
 - *"List all permissions for channel 4"* → Uses `manage_channel_permissions` with action "list"
 - *"Add talk power permission to channel 6"* → Uses `manage_channel_permissions` with action "add"
+- *"Change server name to 'My Gaming Server' and set max clients to 100"* → Uses `update_server_settings`
+- *"Set welcome message to 'Welcome to our server!'"* → Uses `update_server_settings`
+- *"Add user 15 to admin group 6"* → Uses `manage_user_permissions` with action "add_group"
+- *"Remove user 8 from moderator group"* → Uses `manage_user_permissions` with action "remove_group"
+- *"Show all server groups for user 12"* → Uses `manage_user_permissions` with action "list_groups"
+- *"Give user 20 the 'b_client_kick' permission with value 75"* → Uses `manage_user_permissions` with action "add_permission"
 
-## 🛠️ Available Tools (16 total)
+## 🛠️ Available Tools (18 total)
 
 ### **Core Tools**
 - `connect_to_server` : Connect to TeamSpeak server
@@ -324,6 +332,8 @@ Once configured, you can use these commands with Claude:
 - `channel_info` : Get detailed channel information (permissions, codec, type, etc.)
 - `manage_channel_permissions` : Fine-grained permission control (add/remove/list)
 - `client_info_detailed` : Comprehensive client details (platform, version, status, etc.)
+- `update_server_settings` : Update virtual server settings (name, welcome message, max clients, password, host message, default groups)
+- `manage_user_permissions` : Complete user permission management (add/remove server groups, set individual permissions, list assignments)
 
 ## 🔧 Development
 

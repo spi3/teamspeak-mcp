@@ -401,6 +401,91 @@ TOOLS = [
             "additionalProperties": False,
         },
     ),
+    Tool(
+        name="update_server_settings",
+        description="Update virtual server settings (name, welcome message, max clients, etc.)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Server name (optional)",
+                },
+                "welcome_message": {
+                    "type": "string",
+                    "description": "Server welcome message (optional)",
+                },
+                "max_clients": {
+                    "type": "integer",
+                    "description": "Maximum number of clients (optional)",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "Server password (optional, empty string to remove)",
+                },
+                "hostmessage": {
+                    "type": "string",
+                    "description": "Host message displayed in server info (optional)",
+                },
+                "hostmessage_mode": {
+                    "type": "integer",
+                    "description": "Host message mode: 0=none, 1=log, 2=modal, 3=modalquit (optional)",
+                },
+                "default_server_group": {
+                    "type": "integer",
+                    "description": "Default server group ID for new clients (optional)",
+                },
+                "default_channel_group": {
+                    "type": "integer", 
+                    "description": "Default channel group ID for new clients (optional)",
+                },
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="manage_user_permissions",
+        description="Manage user permissions: add/remove server groups, set individual permissions",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "Client ID to manage permissions for",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["add_group", "remove_group", "list_groups", "add_permission", "remove_permission", "list_permissions"],
+                },
+                "group_id": {
+                    "type": "integer",
+                    "description": "Server group ID (required for add_group/remove_group actions)",
+                },
+                "permission": {
+                    "type": "string",
+                    "description": "Permission name (required for add_permission/remove_permission actions)",
+                },
+                "value": {
+                    "type": "integer",
+                    "description": "Permission value (required for add_permission action)",
+                },
+                "skip": {
+                    "type": "boolean",
+                    "description": "Skip flag for permission (optional, default: false)",
+                    "default": False,
+                },
+                "negate": {
+                    "type": "boolean",
+                    "description": "Negate flag for permission (optional, default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["client_id", "action"],
+            "additionalProperties": False,
+        },
+    ),
 ]
 
 class TeamSpeakMCPServer:
@@ -473,6 +558,10 @@ async def run_server():
                 return await _manage_channel_permissions(arguments)
             elif name == "client_info_detailed":
                 return await _client_info_detailed(arguments)
+            elif name == "update_server_settings":
+                return await _update_server_settings(arguments)
+            elif name == "manage_user_permissions":
+                return await _manage_user_permissions(arguments)
             else:
                 raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
@@ -940,6 +1029,138 @@ async def _client_info_detailed(args: dict) -> list[TextContent]:
         return [TextContent(type="text", text=result)]
     except Exception as e:
         raise Exception(f"Error retrieving client info: {e}")
+
+async def _update_server_settings(args: dict) -> list[TextContent]:
+    """Update virtual server settings."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    name = args.get("name")
+    welcome_message = args.get("welcome_message")
+    max_clients = args.get("max_clients")
+    password = args.get("password")
+    hostmessage = args.get("hostmessage")
+    hostmessage_mode = args.get("hostmessage_mode")
+    default_server_group = args.get("default_server_group")
+    default_channel_group = args.get("default_channel_group")
+    
+    try:
+        kwargs = {}
+        if name:
+            kwargs["virtualserver_name"] = name
+        if welcome_message:
+            kwargs["virtualserver_welcomemessage"] = welcome_message
+        if max_clients:
+            kwargs["virtualserver_maxclients"] = max_clients
+        if password:
+            kwargs["virtualserver_password"] = password
+        if hostmessage:
+            kwargs["virtualserver_hostmessage"] = hostmessage
+            kwargs["virtualserver_hostmessage_mode"] = hostmessage_mode
+        if default_server_group:
+            kwargs["virtualserver_default_server_group"] = default_server_group
+        if default_channel_group:
+            kwargs["virtualserver_default_channel_group"] = default_channel_group
+        
+        await asyncio.to_thread(ts_connection.connection.serveredit, **kwargs)
+        
+        changes = [k for k, v in kwargs.items() if v is not None]
+        result = f"✅ Server settings updated successfully\n"
+        result += f"📝 Modified properties: {', '.join(changes)}"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error updating server settings: {e}")
+
+async def _manage_user_permissions(args: dict) -> list[TextContent]:
+    """Manage user permissions."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    action = args["action"]
+    group_id = args.get("group_id")
+    permission = args.get("permission")
+    value = args.get("value")
+    skip = args.get("skip", False)
+    negate = args.get("negate", False)
+    
+    try:
+        if action == "add_group":
+            if not group_id:
+                raise ValueError("Server group ID required for add_group action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupaddclient,
+                sgid=group_id, clid=client_id
+            )
+            result = f"✅ Client {client_id} added to server group {group_id}"
+            
+        elif action == "remove_group":
+            if not group_id:
+                raise ValueError("Server group ID required for remove_group action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupdelclient,
+                sgid=group_id, clid=client_id
+            )
+            result = f"✅ Client {client_id} removed from server group {group_id}"
+            
+        elif action == "list_groups":
+            groups = await asyncio.to_thread(
+                ts_connection.connection.servergrouplist,
+                clid=client_id
+            )
+            
+            result = f"📋 **Client {client_id} Server Groups:**\n\n"
+            if groups:
+                for group in groups:
+                    group_name = group.get('name', 'N/A')
+                    result += f"• **{group_name}**: {group.get('sgid')}\n"
+            else:
+                result += "No server groups assigned to this client."
+                
+        elif action == "add_permission":
+            if not permission or value is None:
+                raise ValueError("Permission name and value required for add_permission action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.clientaddperm,
+                clid=client_id, permsid=permission, permvalue=value, skip=skip, negate=negate
+            )
+            result = f"✅ Permission '{permission}' added to client {client_id} with value {value}"
+            
+        elif action == "remove_permission":
+            if not permission:
+                raise ValueError("Permission name required for remove_permission action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.clientdelperm,
+                clid=client_id, permsid=permission
+            )
+            result = f"✅ Permission '{permission}' removed from client {client_id}"
+            
+        elif action == "list_permissions":
+            perms = await asyncio.to_thread(
+                ts_connection.connection.clientpermlist,
+                clid=client_id
+            )
+            
+            result = f"📋 **Client {client_id} Permissions:**\n\n"
+            if perms:
+                for perm in perms:
+                    perm_name = perm.get('permsid', 'N/A')
+                    perm_value = perm.get('permvalue', 'N/A')
+                    result += f"• **{perm_name}**: {perm_value}\n"
+            else:
+                result += "No permissions assigned to this client."
+                
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing user permissions: {e}")
 
 def main():
     """Entry point for setuptools."""
