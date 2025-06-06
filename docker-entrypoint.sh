@@ -129,13 +129,19 @@ case "${1:-server}" in
         # Attendre que le serveur TeamSpeak soit prêt
         if [ "$TEAMSPEAK_HOST" != "localhost" ] && [ "$TEAMSPEAK_HOST" != "127.0.0.1" ]; then
             log "⏳ Waiting for TeamSpeak server to be ready..."
-            for i in {1..60}; do
+            for i in {1..180}; do
                 if nc -z "$TEAMSPEAK_HOST" "${TEAMSPEAK_PORT:-10011}" 2>/dev/null; then
                     success "TeamSpeak server is ready after ${i}s"
                     break
                 fi
-                if [ $i -eq 60 ]; then
-                    error "TeamSpeak server not ready after 60 seconds"
+                
+                # Log progress every 30 seconds
+                if [ $((i % 30)) -eq 0 ]; then
+                    log "⏳ Still waiting... (${i}s elapsed)"
+                fi
+                
+                if [ $i -eq 180 ]; then
+                    error "TeamSpeak server not ready after 180 seconds"
                     exit 1
                 fi
                 sleep 1
