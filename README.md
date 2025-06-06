@@ -4,11 +4,9 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 
 ## Requirements
 
-- **Python 3.10-3.12** (Python 3.13+ not yet supported due to ts3 library dependency)
+- **Python 3.10-3.12** 
 - **Docker** (optional, for containerized deployment)
 - **TeamSpeak 3 Server** with ServerQuery enabled
-
-⚠️ **Note**: Python 3.13 is not yet supported due to the removal of `telnetlib` module. The `ts3` library dependency needs to be updated first.
 
 ## Features
 
@@ -32,6 +30,9 @@ TeamSpeak MCP offers multiple integration methods to fit your setup and preferen
 ```bash
 # Installation
 uvx install teamspeak-mcp
+
+# Usage
+uvx teamspeak-mcp --host your-server.com --user your-user --password your-password
 
 # Claude Desktop config (CLI args)
 {
@@ -235,12 +236,7 @@ docker run --rm -it \
   "mcpServers": {
     "teamspeak": {
       "command": "uvx",
-      "args": [
-        "teamspeak-mcp",
-        "--host", "your-server.example.com",
-        "--user", "mcp_user",
-        "--password", "secure_password123"
-      ]
+      "args": ["teamspeak-mcp", "--host", "your-server.example.com", "--user", "mcp_user", "--password", "secure_password123"]
     }
   }
 }
@@ -385,7 +381,7 @@ This project uses automated GitHub Actions for building and publishing Docker im
    - Check virtual server ID with `serverlist`
 
 4. **"Python version error"**
-   - Ensure you're using Python 3.10 or higher
+   - Ensure you're using Python 3.10-3.12
    - The MCP library requires Python 3.10+
 
 5. **"Docker env file not found"**
