@@ -129,19 +129,96 @@ case "${1:-server}" in
         # Attendre que le serveur TeamSpeak soit prêt
         if [ "$TEAMSPEAK_HOST" != "localhost" ] && [ "$TEAMSPEAK_HOST" != "127.0.0.1" ]; then
             log "⏳ Waiting for TeamSpeak server to be ready..."
+            log "🔍 Connection target: $TEAMSPEAK_HOST:${TEAMSPEAK_PORT:-10011}"
+            
+            # Debug network connectivity
+            log "🌐 Network debugging:"
+            echo "  DNS resolution test:" >&2
+            nslookup "$TEAMSPEAK_HOST" 2>/dev/null || echo "  DNS resolution failed" >&2
+            echo "  Network interfaces:" >&2
+            ip addr show 2>/dev/null || ifconfig 2>/dev/null || echo "  No network info available" >&2
+            echo "  Routing table:" >&2
+            ip route 2>/dev/null || route -n 2>/dev/null || echo "  No routing info available" >&2
+            
+            # Check if nc is available
+            if ! command -v nc >/dev/null 2>&1; then
+                error "netcat (nc) not available in container"
+                log "Available network tools:"
+                command -v wget >/dev/null 2>&1 && echo "  wget: available" >&2
+                command -v curl >/dev/null 2>&1 && echo "  curl: available" >&2
+                command -v telnet >/dev/null 2>&1 && echo "  telnet: available" >&2
+                command -v python3 >/dev/null 2>&1 && echo "  python3: available" >&2
+            fi
+            
             for i in {1..180}; do
-                if nc -z "$TEAMSPEAK_HOST" "${TEAMSPEAK_PORT:-10011}" 2>/dev/null; then
-                    success "TeamSpeak server is ready after ${i}s"
+                # Try multiple connection methods
+                connected=false
+                
+                # Method 1: netcat
+                if command -v nc >/dev/null 2>&1; then
+                    if nc -z "$TEAMSPEAK_HOST" "${TEAMSPEAK_PORT:-10011}" 2>/dev/null; then
+                        connected=true
+                        method="netcat"
+                    fi
+                fi
+                
+                # Method 2: Python socket (fallback)
+                if [ "$connected" = false ] && command -v python3 >/dev/null 2>&1; then
+                    if python3 -c "
+import socket
+import sys
+try:
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.settimeout(5)
+    result = sock.connect_ex(('$TEAMSPEAK_HOST', ${TEAMSPEAK_PORT:-10011}))
+    sock.close()
+    sys.exit(0 if result == 0 else 1)
+except Exception as e:
+    sys.exit(1)
+" 2>/dev/null; then
+                        connected=true
+                        method="python"
+                    fi
+                fi
+                
+                # Method 3: wget (fallback)
+                if [ "$connected" = false ] && command -v wget >/dev/null 2>&1; then
+                    if wget --spider --timeout=5 "http://$TEAMSPEAK_HOST:${TEAMSPEAK_PORT:-10011}" 2>/dev/null; then
+                        connected=true
+                        method="wget"
+                    fi
+                fi
+                
+                if [ "$connected" = true ]; then
+                    success "TeamSpeak server is ready after ${i}s (via $method)"
                     break
                 fi
                 
-                # Log progress every 30 seconds
+                # Log progress every 30 seconds with detailed info
                 if [ $((i % 30)) -eq 0 ]; then
                     log "⏳ Still waiting... (${i}s elapsed)"
+                    echo "  Connection attempts:" >&2
+                    echo "    Target: $TEAMSPEAK_HOST:${TEAMSPEAK_PORT:-10011}" >&2
+                    echo "    Container hostname: $(hostname)" >&2
+                    echo "    Container IP: $(hostname -i 2>/dev/null || echo 'unknown')" >&2
+                    
+                    # Test alternative connection methods
+                    if command -v ping >/dev/null 2>&1; then
+                        echo "  Ping test:" >&2
+                        ping -c 1 "$TEAMSPEAK_HOST" 2>&1 | head -3 >&2 || echo "    Ping failed" >&2
+                    fi
                 fi
                 
                 if [ $i -eq 180 ]; then
                     error "TeamSpeak server not ready after 180 seconds"
+                    log "🔧 Final diagnostics:"
+                    echo "  Environment:" >&2
+                    echo "    TEAMSPEAK_HOST=$TEAMSPEAK_HOST" >&2
+                    echo "    TEAMSPEAK_PORT=${TEAMSPEAK_PORT:-10011}" >&2
+                    echo "  Network tools available:" >&2
+                    command -v nc >/dev/null 2>&1 && echo "    nc: yes" >&2 || echo "    nc: no" >&2
+                    command -v python3 >/dev/null 2>&1 && echo "    python3: yes" >&2 || echo "    python3: no" >&2
+                    command -v wget >/dev/null 2>&1 && echo "    wget: yes" >&2 || echo "    wget: no" >&2
                     exit 1
                 fi
                 sleep 1

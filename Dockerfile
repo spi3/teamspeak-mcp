@@ -23,7 +23,12 @@ COPY requirements.txt .
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         gcc \
-        libc6-dev && \
+        libc6-dev \
+        netcat-openbsd \
+        iputils-ping \
+        dnsutils \
+        wget \
+        curl && \
     pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     apt-get remove -y gcc libc6-dev && \
