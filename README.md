@@ -4,9 +4,11 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 
 ## Requirements
 
-- **Python 3.10+** (required by Model Context Protocol SDK)
+- **Python 3.10-3.12** (Python 3.13+ not yet supported due to ts3 library dependency)
 - **Docker** (optional, for containerized deployment)
 - **TeamSpeak 3 Server** with ServerQuery enabled
+
+⚠️ **Note**: Python 3.13 is not yet supported due to the removal of `telnetlib` module. The `ts3` library dependency needs to be updated first.
 
 ## Features
 
