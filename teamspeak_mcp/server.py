@@ -146,6 +146,25 @@ TOOLS = [
         },
     ),
     Tool(
+        name="poke_client",
+        description="Send a poke (alert notification) to a client - more attention-grabbing than a private message",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "Target client ID to poke",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Poke message to send",
+                },
+            },
+            "required": ["client_id", "message"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
         name="list_clients",
         description="List all clients connected to the server",
         inputSchema={
@@ -541,6 +560,8 @@ async def run_server():
                 return await _send_channel_message(arguments)
             elif name == "send_private_message":
                 return await _send_private_message(arguments)
+            elif name == "poke_client":
+                return await _poke_client(arguments)
             elif name == "list_clients":
                 return await _list_clients()
             elif name == "list_channels":
@@ -648,6 +669,24 @@ async def _send_private_message(args: dict) -> list[TextContent]:
         return [TextContent(type="text", text=f"✅ Private message sent to client {client_id}: {message}")]
     except Exception as e:
         raise Exception(f"Error sending private message: {e}")
+
+async def _poke_client(args: dict) -> list[TextContent]:
+    """Send a poke (alert notification) to a client."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    message = args["message"]
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.clientpoke,
+            clid=client_id, msg=message
+        )
+        
+        return [TextContent(type="text", text=f"👉 Poke sent to client {client_id}: {message}")]
+    except Exception as e:
+        raise Exception(f"Error sending poke: {e}")
 
 async def _list_clients() -> list[TextContent]:
     """List connected clients."""

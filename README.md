@@ -20,7 +20,7 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 ## Features
 
 - 🎯 Connect to TeamSpeak servers
-- 💬 Send messages to channels and private messages
+- 💬 Send messages to channels, private messages, and pokes (alert notifications)
 - 📋 List connected users and detailed client information
 - 🔧 **Advanced channel management** (create, delete, update properties, permissions)
 - 🔇 **AFK/Silent channel setup** with talk power presets
@@ -29,7 +29,7 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🖥️ **Virtual server configuration** (name, description, limits, welcome messages)
 - 👥 **User permission management** (server groups, individual permissions)
 - 📊 Comprehensive server and channel diagnostics
-- ⚙️ **18 powerful tools** for complete TeamSpeak automation
+- ⚙️ **19 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
 
@@ -291,6 +291,8 @@ Once configured, you can use these commands with Claude:
 ### **Basic Commands**
 - *"Connect to TeamSpeak server"*
 - *"Send message 'Hello everyone!' to general channel"*
+- *"Send private message 'Can you join me?' to user 5"*
+- *"Poke user 12 with message 'Urgent: Please check the announcement!'"*
 - *"List connected users"*
 - *"Create temporary channel called 'Meeting'"*
 - *"Move user John to private channel"*
@@ -311,12 +313,13 @@ Once configured, you can use these commands with Claude:
 - *"Show all server groups for user 12"* → Uses `manage_user_permissions` with action "list_groups"
 - *"Give user 20 the 'b_client_kick' permission with value 75"* → Uses `manage_user_permissions` with action "add_permission"
 
-## 🛠️ Available Tools (18 total)
+## 🛠️ Available Tools (19 total)
 
 ### **Core Tools**
 - `connect_to_server` : Connect to TeamSpeak server
 - `send_channel_message` : Send message to a channel
 - `send_private_message` : Send private message
+- `poke_client` : Send poke (alert notification) to a user - more attention-grabbing than private message
 - `list_clients` : List connected clients
 - `list_channels` : List channels
 - `create_channel` : Create new channel
