@@ -277,6 +277,16 @@ TOOLS = [
     ),
 ]
 
+class TeamSpeakMCPServer:
+    """TeamSpeak MCP Server class for backward compatibility with tests."""
+    
+    def __init__(self):
+        self.tools = TOOLS
+    
+    async def handle_list_tools(self, request) -> ListToolsResult:
+        """Handle list tools request."""
+        return ListToolsResult(tools=self.tools)
+
 async def run_server():
     """Run the MCP server."""
     global ts_connection
