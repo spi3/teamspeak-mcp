@@ -19,279 +19,137 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🎵 Voice control (mute, unmute, kick, ban)
 - 📊 Server statistics
 
-## 🚀 Quick Start with Pre-built Images
+## 🎯 **Integration Methods Overview**
 
-We provide pre-built Docker images via GitHub Container Registry for easy deployment:
+TeamSpeak MCP offers multiple integration methods to fit your setup and preferences:
 
-### Using Latest Release
-
-```bash
-# Pull the latest stable release
-docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
-
-# Run with environment variables
-docker run --rm -i \
-  -e TEAMSPEAK_HOST=your-server.example.com \
-  -e TEAMSPEAK_PASSWORD=your-password \
-  ghcr.io/marlburrow/teamspeak-mcp:latest
-```
-
-### Using Specific Version
+### **📦 Method 1: PyPI Package (Recommended for most users)**
+- ✅ **Easiest setup** - One command installation
+- ✅ **Automatic updates** via standard package managers
+- ✅ **Standard MCP pattern** - Compatible with Claude Desktop examples
+- ✅ **No Docker required** - Pure Python implementation
 
 ```bash
-# Use a specific version (recommended for production)
-docker pull ghcr.io/marlburrow/teamspeak-mcp:v1.0.0
-
-# With docker-compose (update docker-compose.yml)
-services:
-  teamspeak-mcp:
-    image: ghcr.io/marlburrow/teamspeak-mcp:v1.0.0
-    # ... rest of your configuration
-```
-
-### Available Tags
-
-- `latest` - Latest stable release
-- `v1.0.0`, `v1.0`, `v1` - Semantic versioning tags
-- `main` - Latest development build
-
-## Installation
-
-### 🚀 **Quick Install (Recommended)**
-
-**Using uvx (like other MCP servers):**
-```bash
+# Installation
 uvx install teamspeak-mcp
-```
 
-**Using pip:**
-```bash
-pip install teamspeak-mcp
-```
-
-### 🐳 **Docker Method**
-
-1. Clone this repository:
-```bash
-git clone https://github.com/MarlBurroW/teamspeak-mcp.git
-cd teamspeak-mcp
-```
-
-2. Configure your credentials in `docker-compose.yml` or create a `.env` file
-
-3. Start with Docker Compose:
-```bash
-docker-compose up -d
-```
-
-### 🐍 **Local Development Installation**
-
-**Prerequisites**: Python 3.10 or higher
-
-1. Clone this repository:
-```bash
-git clone https://github.com/MarlBurroW/teamspeak-mcp.git
-cd teamspeak-mcp
-```
-
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Configure your TeamSpeak credentials (see next section)
-
-## 🔑 TeamSpeak Credentials Configuration
-
-### Where to find connection information?
-
-#### 1. **Server Address (TEAMSPEAK_HOST)**
-- Your public IP address or domain name
-- Example: `my-server.com` or `192.168.1.100`
-
-#### 2. **ServerQuery Port (TEAMSPEAK_PORT)**
-- Default: `10011`
-- Check your TeamSpeak server configuration
-
-#### 3. **ServerQuery Credentials (TEAMSPEAK_USER / TEAMSPEAK_PASSWORD)**
-
-**On your TeamSpeak server:**
-
-1. **Connect as admin** to your TeamSpeak server
-2. **Enable ServerQuery** if not done:
-   - Go to `Tools` → `ServerQuery Login`
-   - Or check `ts3server.ini` file: `query_port=10011`
-
-3. **Create a ServerQuery user**:
-   - Connect via telnet/putty to `your-server:10011`
-   - Use these commands:
-   ```
-   # Initial connection (use admin token)
-   auth apikey=YOUR_API_KEY
-   
-   # Or with default serveradmin account
-   login serveradmin YOUR_ADMIN_PASSWORD
-   
-   # Create new user for MCP
-   serverqueryadd client_login_name=mcp_user client_login_password=your_password
-   ```
-
-4. **Get initial token** (first installation):
-   - In TeamSpeak server logs at startup
-   - Look for: `token=` in logs
-
-#### 4. **Virtual Server ID (TEAMSPEAK_SERVER_ID)**
-- Usually `1` for main server
-- Use `serverlist` command via ServerQuery to see all servers
-
-### Configuration Example
-
-Create a `.env` file:
-```bash
-# TeamSpeak MCP Configuration
-TEAMSPEAK_HOST=my-server.teamspeak.com
-TEAMSPEAK_PORT=10011
-TEAMSPEAK_USER=mcp_user
-TEAMSPEAK_PASSWORD=my_secure_password
-TEAMSPEAK_SERVER_ID=1
-```
-
-## Claude Desktop Configuration
-
-### 🎯 **Standard MCP Configuration (Recommended)**
-
-**Using command line arguments (like other MCP servers):**
-
-```json
+# Claude Desktop config (CLI args)
 {
   "mcpServers": {
     "teamspeak": {
       "command": "uvx",
-      "args": [
-        "teamspeak-mcp",
-        "--host", "ts.obsmania.com",
-        "--port", "10011",
-        "--user", "claude",
-        "--password", "QtIjZoCX",
-        "--server-id", "1"
-      ]
+      "args": ["teamspeak-mcp", "--host", "your-server.com", "--user", "your-user", "--password", "your-password"]
     }
   }
 }
 ```
 
-**Alternative with Python directly:**
+### **🐳 Method 2: Pre-built Docker Images (Recommended for containers)**
+- ✅ **No dependencies** - Everything included
+- ✅ **Version consistency** - Immutable deployments  
+- ✅ **Easy scaling** - Works with orchestration
+- ✅ **Cross-platform** - Works anywhere Docker runs
 
-```json
-{
-  "mcpServers": {
-    "teamspeak": {
-      "command": "python",
-      "args": [
-        "-m", "teamspeak_mcp.server",
-        "--host", "ts.obsmania.com",
-        "--port", "10011",
-        "--user", "claude",
-        "--password", "QtIjZoCX",
-        "--server-id", "1"
-      ]
-    }
-  }
-}
-```
-
-### 🐳 **Docker Configuration**
-
-**Using environment variables (working method):**
-
-```json
-{
-  "mcpServers": {
-    "teamspeak": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "ghcr.io/marlburrow/teamspeak-mcp:latest"
-      ],
-      "env": {
-        "TEAMSPEAK_HOST": "ts.obsmania.com",
-        "TEAMSPEAK_PORT": "10011",
-        "TEAMSPEAK_USER": "claude",
-        "TEAMSPEAK_PASSWORD": "QtIjZoCX",
-        "TEAMSPEAK_SERVER_ID": "1"
-      }
-    }
-  }
-}
-```
-
-**Using .env file:**
-
-First, create a `.env` file with your credentials:
 ```bash
-# Save this as ~/.teamspeak-mcp.env
-TEAMSPEAK_HOST=ts.obsmania.com
-TEAMSPEAK_PORT=10011
-TEAMSPEAK_USER=claude
-TEAMSPEAK_PASSWORD=QtIjZoCX
-TEAMSPEAK_SERVER_ID=1
-```
+# Installation
+docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
 
-Then configure Claude Desktop:
-```json
+# Claude Desktop config (env vars)
 {
   "mcpServers": {
     "teamspeak": {
       "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "--env-file", "/Users/your-username/.teamspeak-mcp.env",
-        "ghcr.io/marlburrow/teamspeak-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-### 🐳 With Local Docker Build
-
-```json
-{
-  "mcpServers": {
-    "teamspeak": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "TEAMSPEAK_HOST=your-server.example.com",
-        "-e", "TEAMSPEAK_PASSWORD=your-password",
-        "teamspeak-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-### 🐍 Without Docker
-
-```json
-{
-  "mcpServers": {
-    "teamspeak": {
-      "command": "python",
-      "args": ["-m", "teamspeak_mcp.server"],
+      "args": ["run", "--rm", "-i", "ghcr.io/marlburrow/teamspeak-mcp:latest"],
       "env": {
-        "TEAMSPEAK_HOST": "your-server.example.com",
-        "TEAMSPEAK_PORT": "10011",
-        "TEAMSPEAK_USER": "serveradmin",
-        "TEAMSPEAK_PASSWORD": "your-password",
-        "TEAMSPEAK_SERVER_ID": "1"
+        "TEAMSPEAK_HOST": "your-server.com",
+        "TEAMSPEAK_USER": "your-user",
+        "TEAMSPEAK_PASSWORD": "your-password"
       }
     }
   }
 }
 ```
 
-> **⚠️ Important**: Replace all placeholder values (`your-server.example.com`, `your-password`, etc.) with your actual TeamSpeak server credentials.
+### **🐍 Method 3: Local Python Installation (For developers)**
+- ✅ **Full control** - Access to source code
+- ✅ **Customizable** - Modify for specific needs
+- ✅ **Development** - Contribute to the project
+- ⚠️ **More setup** - Requires Python environment management
+
+```bash
+# Installation
+git clone https://github.com/MarlBurroW/teamspeak-mcp.git
+cd teamspeak-mcp && pip install -r requirements.txt
+
+# Claude Desktop config (Python module)
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "python",
+      "args": ["-m", "teamspeak_mcp.server", "--host", "your-server.com", "--user", "your-user", "--password", "your-password"]
+    }
+  }
+}
+```
+
+### **🏗️ Method 4: Local Docker Build (For customization)**
+- ✅ **Custom builds** - Modify Dockerfile as needed
+- ✅ **Offline capability** - No external dependencies
+- ✅ **Version control** - Pin to specific commits
+- ⚠️ **Build time** - Requires local Docker build
+
+```bash
+# Installation
+git clone https://github.com/MarlBurroW/teamspeak-mcp.git
+cd teamspeak-mcp && docker build -t teamspeak-mcp .
+
+# Claude Desktop config (local image)
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "teamspeak-mcp:latest"],
+      "env": {
+        "TEAMSPEAK_HOST": "your-server.com",
+        "TEAMSPEAK_USER": "your-user", 
+        "TEAMSPEAK_PASSWORD": "your-password"
+      }
+    }
+  }
+}
+```
+
+### **🎯 Which Method Should You Choose?**
+
+| Use Case | Recommended Method | Why |
+|----------|-------------------|-----|
+| **First time user** | PyPI Package (`uvx`) | Easiest setup, standard MCP pattern |
+| **Production deployment** | Pre-built Docker | Reliable, versioned, no dependencies |
+| **CI/CD environments** | Pre-built Docker | Consistent, fast deployment |
+| **Development/Contributing** | Local Python | Full access to source code |
+| **Custom modifications** | Local Docker Build | Controlled build process |
+| **Corporate environments** | Local Docker Build | No external dependencies |
+
+### **💡 Quick Start Examples**
+
+**Fastest (PyPI):**
+```bash
+uvx install teamspeak-mcp
+# Add to Claude Desktop config with CLI args
+```
+
+**Most Reliable (Docker):**
+```bash
+docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
+# Add to Claude Desktop config with env vars
+```
+
+**Most Flexible (Local):**
+```bash
+git clone https://github.com/MarlBurroW/teamspeak-mcp.git
+cd teamspeak-mcp && pip install -r requirements.txt
+# Add to Claude Desktop config with Python module
+```
 
 ## 🚀 Quick Start
 
@@ -311,8 +169,101 @@ python test_mcp.py
 docker build -t teamspeak-mcp .
 
 # Test with Docker
-docker run --rm -it --env-file .env teamspeak-mcp python test_mcp.py
+docker run --rm -it --env-file .env teamspeak-mcp test
 ```
+
+## 🔑 TeamSpeak Server Setup
+
+Before using TeamSpeak MCP, you need to configure your TeamSpeak server credentials:
+
+### **📋 Required Information**
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| **TEAMSPEAK_HOST** | Your server IP or domain | `ts.example.com` or `192.168.1.100` |
+| **TEAMSPEAK_PORT** | ServerQuery port (default: 10011) | `10011` |
+| **TEAMSPEAK_USER** | ServerQuery username | `mcp_user` |
+| **TEAMSPEAK_PASSWORD** | ServerQuery password | `secure_password123` |
+| **TEAMSPEAK_SERVER_ID** | Virtual server ID (usually 1) | `1` |
+
+### **🔧 How to Get Your Credentials**
+
+#### **Step 1: Enable ServerQuery**
+On your TeamSpeak server, ensure ServerQuery is enabled:
+- Check `ts3server.ini`: `query_port=10011`
+- Default enabled on most installations
+
+#### **Step 2: Get Admin Access**
+- **First installation**: Check server logs for admin token: `token=AAAA...`
+- **Existing server**: Use your admin credentials
+
+#### **Step 3: Create MCP User**
+Connect to ServerQuery and create a dedicated user:
+
+```bash
+# Connect via telnet or putty to your-server:10011
+telnet your-server.example.com 10011
+
+# Login with admin
+login serveradmin YOUR_ADMIN_PASSWORD
+
+# Create dedicated user for MCP
+serverqueryadd client_login_name=mcp_user client_login_password=secure_password123
+
+# Grant necessary permissions (optional - adjust as needed)
+servergroupaddclient sgid=6 cldbid=USER_DB_ID
+```
+
+#### **Step 4: Test Connection**
+```bash
+# Test with our connection script
+python test_mcp.py
+
+# Or with Docker
+docker run --rm -it \
+  -e TEAMSPEAK_HOST=your-server.example.com \
+  -e TEAMSPEAK_USER=mcp_user \
+  -e TEAMSPEAK_PASSWORD=secure_password123 \
+  ghcr.io/marlburrow/teamspeak-mcp:latest test
+```
+
+### **💡 Quick Configuration Examples**
+
+**For PyPI installation:**
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "uvx",
+      "args": [
+        "teamspeak-mcp",
+        "--host", "your-server.example.com",
+        "--user", "mcp_user",
+        "--password", "secure_password123"
+      ]
+    }
+  }
+}
+```
+
+**For Docker installation:**
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "docker",
+      "args": ["run", "--rm", "-i", "ghcr.io/marlburrow/teamspeak-mcp:latest"],
+      "env": {
+        "TEAMSPEAK_HOST": "your-server.example.com",
+        "TEAMSPEAK_USER": "mcp_user",
+        "TEAMSPEAK_PASSWORD": "secure_password123"
+      }
+    }
+  }
+}
+```
+
+> **⚠️ Security Note**: Create a dedicated ServerQuery user with minimal permissions. Never use your admin account for automated tools.
 
 ## Usage
 
