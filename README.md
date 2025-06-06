@@ -1,5 +1,14 @@
 # TeamSpeak MCP
 
+[![PyPI version](https://badge.fury.io/py/teamspeak-mcp.svg)](https://badge.fury.io/py/teamspeak-mcp)
+[![Python](https://img.shields.io/pypi/pyversions/teamspeak-mcp.svg)](https://pypi.org/project/teamspeak-mcp/)
+[![MCP](https://img.shields.io/badge/MCP-Server-green)](https://modelcontextprotocol.io)
+[![GitHub Actions](https://github.com/MarlBurroW/teamspeak-mcp/workflows/Publish%20to%20PyPI/badge.svg)](https://github.com/MarlBurroW/teamspeak-mcp/actions)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io-blue)](https://github.com/MarlBurroW/teamspeak-mcp/pkgs/container/teamspeak-mcp)
+[![License](https://img.shields.io/github/license/MarlBurroW/teamspeak-mcp.svg)](https://github.com/MarlBurroW/teamspeak-mcp/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/MarlBurroW/teamspeak-mcp.svg)](https://github.com/MarlBurroW/teamspeak-mcp/stargazers)
+[![GitHub issues](https://img.shields.io/github/issues/MarlBurroW/teamspeak-mcp.svg)](https://github.com/MarlBurroW/teamspeak-mcp/issues)
+
 A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models like Claude.
 
 ## Requirements
