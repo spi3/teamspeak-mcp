@@ -9,7 +9,7 @@ description = "MCP server for controlling TeamSpeak from AI models"
 authors = [{name = "Nicolas Varrot"}]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "mcp>=1.0.0",
     "ts3>=2.0.0",

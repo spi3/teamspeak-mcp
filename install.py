@@ -150,8 +150,8 @@ def main():
     print_banner()
     
     # Check Python version
-    if sys.version_info < (3, 8):
-        print("❌ Python 3.8+ is required")
+    if sys.version_info < (3, 10):
+        print("❌ Python 3.10+ is required")
         sys.exit(1)
     
     # Install dependencies
