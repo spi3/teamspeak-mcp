@@ -106,15 +106,15 @@ status: ## Show container status
 # === RELEASES (Automated via GitHub Actions) ===
 release-patch: ## Release patch version (bug fixes)
 	@echo "🚀 Creating patch release..."
-	python scripts/release.py patch
+	python3 scripts/release.py patch
 
 release-minor: ## Release minor version (new features)
 	@echo "🚀 Creating minor release..."
-	python scripts/release.py minor
+	python3 scripts/release.py minor
 
 release-major: ## Release major version (breaking changes)
 	@echo "🚀 Creating major release..."
-	python scripts/release.py major
+	python3 scripts/release.py major
 
 # === PYPI SETUP ===
 setup-pypi: ## Setup PyPI tokens (run once)
@@ -130,7 +130,7 @@ setup-pypi: ## Setup PyPI tokens (run once)
 # === MANUAL PYPI (Fallback) ===
 build-package: ## Build Python package
 	rm -rf dist/ build/ *.egg-info/
-	python -m build
+	python3 -m build
 	twine check dist/*
 
 upload-test: ## Upload to TestPyPI
