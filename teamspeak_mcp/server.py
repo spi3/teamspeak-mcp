@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import ts3
 from mcp.server import Server
+from mcp.server.lowlevel import NotificationOptions
 from mcp.server.models import InitializationOptions
 from mcp.server.stdio import stdio_server
 from mcp.types import (
@@ -356,8 +357,8 @@ async def run_server():
                     server_name="teamspeak",
                     server_version="1.0.0",
                     capabilities=server.get_capabilities(
-                        notification_options=None,
-                        experimental_capabilities=None,
+                        notification_options=NotificationOptions(),
+                        experimental_capabilities={},
                     ),
                 ),
             )
