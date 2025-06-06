@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "teamspeak-mcp"
-version = "1.1.0"
+version = "1.1.1"
 description = "TeamSpeak MCP Server - Control TeamSpeak from AI models"
 authors = [{name = "MarlBurroW", email = "contact@example.com"}]
 license = {text = "MIT"}
