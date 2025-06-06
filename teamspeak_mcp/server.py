@@ -1086,6 +1086,16 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
     negate = args.get("negate", False)
     
     try:
+        # First, get client database ID for some operations
+        client_info = None
+        if action in ["list_groups", "add_permission", "remove_permission", "list_permissions"]:
+            client_info = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+            # Handle response format
+            if hasattr(client_info, 'data') and client_info.data:
+                client_info = client_info.data[0]
+            elif hasattr(client_info, '__iter__') and not isinstance(client_info, str):
+                client_info = list(client_info)[0] if client_info else {}
+        
         if action == "add_group":
             if not group_id:
                 raise ValueError("Server group ID required for add_group action")
@@ -1107,16 +1117,22 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             result = f"✅ Client {client_id} removed from server group {group_id}"
             
         elif action == "list_groups":
+            # Use the client database ID to get server groups
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             groups = await asyncio.to_thread(
-                ts_connection.connection.servergrouplist,
-                clid=client_id
+                ts_connection.connection.servergroupsbyclientid,
+                cldbid=client_database_id
             )
             
             result = f"📋 **Client {client_id} Server Groups:**\n\n"
             if groups:
                 for group in groups:
                     group_name = group.get('name', 'N/A')
-                    result += f"• **{group_name}**: {group.get('sgid')}\n"
+                    group_id = group.get('sgid', 'N/A')
+                    result += f"• **{group_name}** (ID: {group_id})\n"
             else:
                 result += "No server groups assigned to this client."
                 
@@ -1124,9 +1140,13 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not permission or value is None:
                 raise ValueError("Permission name and value required for add_permission action")
             
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             await asyncio.to_thread(
                 ts_connection.connection.clientaddperm,
-                clid=client_id, permsid=permission, permvalue=value, skip=skip, negate=negate
+                cldbid=client_database_id, permsid=permission, permvalue=value, skip=skip, negate=negate
             )
             result = f"✅ Permission '{permission}' added to client {client_id} with value {value}"
             
@@ -1134,16 +1154,24 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not permission:
                 raise ValueError("Permission name required for remove_permission action")
             
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             await asyncio.to_thread(
                 ts_connection.connection.clientdelperm,
-                clid=client_id, permsid=permission
+                cldbid=client_database_id, permsid=permission
             )
             result = f"✅ Permission '{permission}' removed from client {client_id}"
             
         elif action == "list_permissions":
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             perms = await asyncio.to_thread(
                 ts_connection.connection.clientpermlist,
-                clid=client_id
+                cldbid=client_database_id, permsid=True
             )
             
             result = f"📋 **Client {client_id} Permissions:**\n\n"
@@ -1153,7 +1181,7 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
                     perm_value = perm.get('permvalue', 'N/A')
                     result += f"• **{perm_name}**: {perm_value}\n"
             else:
-                result += "No permissions assigned to this client."
+                result += "No custom permissions assigned to this client."
                 
         else:
             raise ValueError(f"Unknown action: {action}")
