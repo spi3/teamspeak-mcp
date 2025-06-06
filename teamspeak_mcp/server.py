@@ -62,14 +62,32 @@ class TeamSpeakConnection:
             self.connection = await asyncio.to_thread(ts3.query.TS3Connection, self.host, self.port)
             await asyncio.to_thread(self.connection.use, sid=self.server_id)
             
-            # Try to use admin token if provided
+            # Authenticate if password is provided
             if self.password:
+                # First try to login with username/password (classic ServerQuery auth)
                 try:
-                    # Use the ts3 library's tokenuse method
-                    await asyncio.to_thread(self.connection.tokenuse, token=self.password)
-                    logger.info("Successfully used admin privilege key")
-                except Exception as token_error:
-                    logger.warning(f"Could not use admin token: {token_error}, continuing with basic permissions")
+                    await asyncio.to_thread(self.connection.login, client_login_name=self.user, client_login_password=self.password)
+                    logger.info("Successfully authenticated with username/password")
+                except Exception as login_error:
+                    logger.info(f"Username/password authentication failed: {login_error}")
+                    
+                    # If login fails, try to use as admin token
+                    try:
+                        await asyncio.to_thread(self.connection.tokenuse, token=self.password)
+                        logger.info("Successfully used admin privilege key")
+                    except Exception as token_error:
+                        logger.warning(f"Could not use admin token either: {token_error}")
+                        logger.warning("Continuing with basic anonymous permissions")
+            else:
+                logger.info("No password provided, using anonymous connection")
+            
+            # Test basic connectivity and permissions
+            try:
+                # Try a simple command to verify permissions
+                await asyncio.to_thread(self.connection.whoami)
+                logger.info("Basic connectivity test passed")
+            except Exception as test_error:
+                logger.warning(f"Basic connectivity test failed: {test_error}")
             
             logger.info("TeamSpeak connection established successfully")
             return True
@@ -514,6 +532,15 @@ TOOLS = [
             "additionalProperties": False,
         },
     ),
+    Tool(
+        name="diagnose_permissions",
+        description="Diagnose current connection permissions and provide troubleshooting help",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
 ]
 
 class TeamSpeakMCPServer:
@@ -592,6 +619,8 @@ async def run_server():
                 return await _update_server_settings(arguments)
             elif name == "manage_user_permissions":
                 return await _manage_user_permissions(arguments)
+            elif name == "diagnose_permissions":
+                return await _diagnose_permissions()
             else:
                 raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
@@ -703,7 +732,35 @@ async def _list_clients() -> list[TextContent]:
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
-        raise Exception(f"Error retrieving clients: {e}")
+        error_message = str(e)
+        
+        # Check for specific permission errors
+        if "error id 2568" in error_message or "insufficient client permissions" in error_message:
+            diagnostic_result = "❌ **Erreur de permissions insuffisantes**\n\n"
+            diagnostic_result += "La commande `list_clients` nécessite des permissions élevées.\n\n"
+            diagnostic_result += "**🔧 Solutions possibles :**\n\n"
+            diagnostic_result += "1. **Vérifiez votre mot de passe :**\n"
+            diagnostic_result += "   - Utilisez un mot de passe ServerQuery valide\n"
+            diagnostic_result += "   - Ou utilisez un token admin (commençant par 'token=')\n\n"
+            diagnostic_result += "2. **Créez un utilisateur ServerQuery :**\n"
+            diagnostic_result += "   ```\n"
+            diagnostic_result += "   # Connectez-vous au ServerQuery\n"
+            diagnostic_result += "   serverqueryadd client_login_name=mcp_user client_login_password=votre_mot_de_passe\n"
+            diagnostic_result += "   servergroupaddclient sgid=6 cldbid=ID_USER  # Groupe Server Admin\n"
+            diagnostic_result += "   ```\n\n"
+            diagnostic_result += "3. **Obtenez un token admin :**\n"
+            diagnostic_result += "   - Regardez les logs du serveur TS3 au démarrage\n"
+            diagnostic_result += "   - Ou utilisez: `tokenadd tokentype=0 tokenid1=6`\n\n"
+            diagnostic_result += "4. **Vérifiez la configuration :**\n"
+            diagnostic_result += f"   - Host: {ts_connection.host}\n"
+            diagnostic_result += f"   - User: {ts_connection.user}\n"
+            diagnostic_result += f"   - Password: {'[SET]' if ts_connection.password else '[NOT SET]'}\n\n"
+            diagnostic_result += "**🔍 Test rapide :**\n"
+            diagnostic_result += "Essayez d'abord avec `server_info` qui nécessite moins de permissions."
+            
+            return [TextContent(type="text", text=diagnostic_result)]
+        else:
+            raise Exception(f"Error retrieving clients: {e}")
 
 async def _list_channels() -> list[TextContent]:
     """List channels."""
@@ -1237,6 +1294,79 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
         return [TextContent(type="text", text=result)]
     except Exception as e:
         raise Exception(f"Error managing user permissions: {e}")
+
+async def _diagnose_permissions() -> list[TextContent]:
+    """Diagnose current connection permissions and provide troubleshooting help."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    result = "🔍 **Diagnostic des Permissions TeamSpeak MCP**\n\n"
+    
+    # Test 1: Basic whoami
+    try:
+        whoami = await asyncio.to_thread(ts_connection.connection.whoami)
+        result += "✅ **Connexion de base** : OK\n"
+        result += f"   - Client ID: {whoami.get('client_id', 'N/A')}\n"
+        result += f"   - Database ID: {whoami.get('client_database_id', 'N/A')}\n"
+        result += f"   - Nickname: {whoami.get('client_nickname', 'N/A')}\n"
+        result += f"   - Type: {'ServerQuery' if whoami.get('client_type') == '1' else 'Regular'}\n\n"
+    except Exception as e:
+        result += f"❌ **Connexion de base** : ÉCHEC\n   Erreur: {e}\n\n"
+        return [TextContent(type="text", text=result)]
+    
+    # Test 2: Server info (basic permission)
+    try:
+        await asyncio.to_thread(ts_connection.connection.serverinfo)
+        result += "✅ **server_info** : OK (permissions de base)\n"
+    except Exception as e:
+        result += f"❌ **server_info** : ÉCHEC - {e}\n"
+    
+    # Test 3: Client list (elevated permission)
+    try:
+        await asyncio.to_thread(ts_connection.connection.clientlist)
+        result += "✅ **list_clients** : OK (permissions élevées)\n"
+    except Exception as e:
+        result += f"❌ **list_clients** : ÉCHEC - {e}\n"
+    
+    # Test 4: Channel list
+    try:
+        await asyncio.to_thread(ts_connection.connection.channellist)
+        result += "✅ **list_channels** : OK\n"
+    except Exception as e:
+        result += f"❌ **list_channels** : ÉCHEC - {e}\n"
+    
+    # Test 5: Try to get current permissions
+    try:
+        client_info = await asyncio.to_thread(ts_connection.connection.whoami)
+        client_db_id = client_info.get('client_database_id')
+        
+        if client_db_id:
+            # Try to get server groups
+            try:
+                groups = await asyncio.to_thread(ts_connection.connection.servergroupsbyclientid, cldbid=client_db_id)
+                result += f"✅ **Groupes serveur** : OK\n"
+                for group in groups[:3]:  # Limit to first 3 groups
+                    result += f"   - {group.get('name', 'N/A')} (ID: {group.get('sgid', 'N/A')})\n"
+            except Exception as e:
+                result += f"❌ **Groupes serveur** : ÉCHEC - {e}\n"
+    except Exception as e:
+        result += f"❌ **Analyse des permissions** : ÉCHEC - {e}\n"
+    
+    result += "\n**📊 Configuration actuelle :**\n"
+    result += f"   - Host: {ts_connection.host}:{ts_connection.port}\n"
+    result += f"   - User: {ts_connection.user}\n"
+    result += f"   - Password: {'✅ Fourni' if ts_connection.password else '❌ Non fourni'}\n"
+    result += f"   - Server ID: {ts_connection.server_id}\n\n"
+    
+    result += "**💡 Recommandations :**\n\n"
+    result += "Si vous avez des échecs :\n"
+    result += "1. **Vérifiez votre mot de passe ServerQuery**\n"
+    result += "2. **Utilisez un token admin** si disponible\n"
+    result += "3. **Créez un utilisateur ServerQuery avec permissions admin**\n"
+    result += "4. **Vérifiez que le port 10011 (ServerQuery) est accessible**\n\n"
+    result += "Pour plus d'aide, utilisez la commande `list_clients` qui fournit un diagnostic détaillé en cas d'erreur."
+    
+    return [TextContent(type="text", text=result)]
 
 def main():
     """Entry point for setuptools."""

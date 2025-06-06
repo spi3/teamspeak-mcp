@@ -29,7 +29,7 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🖥️ **Virtual server configuration** (name, description, limits, welcome messages)
 - 👥 **User permission management** (server groups, individual permissions)
 - 📊 Comprehensive server and channel diagnostics
-- ⚙️ **19 powerful tools** for complete TeamSpeak automation
+- ⚙️ **20 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
 
@@ -312,8 +312,10 @@ Once configured, you can use these commands with Claude:
 - *"Remove user 8 from moderator group"* → Uses `manage_user_permissions` with action "remove_group"
 - *"Show all server groups for user 12"* → Uses `manage_user_permissions` with action "list_groups"
 - *"Give user 20 the 'b_client_kick' permission with value 75"* → Uses `manage_user_permissions` with action "add_permission"
+- *"Diagnose my current permissions and connection"* → Uses `diagnose_permissions`
+- *"Check why I can't list clients"* → Uses `diagnose_permissions`
 
-## 🛠️ Available Tools (19 total)
+## 🎯 Available Tools (20 total)
 
 ### **Core Tools**
 - `connect_to_server` : Connect to TeamSpeak server
@@ -337,6 +339,7 @@ Once configured, you can use these commands with Claude:
 - `client_info_detailed` : Comprehensive client details (platform, version, status, etc.)
 - `update_server_settings` : Update virtual server settings (name, welcome message, max clients, password, host message, default groups)
 - `manage_user_permissions` : Complete user permission management (add/remove server groups, set individual permissions, list assignments)
+- `diagnose_permissions` : Diagnose current connection permissions and troubleshoot issues
 
 ## 🔧 Development
 

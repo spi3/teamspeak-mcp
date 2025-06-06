@@ -8,7 +8,7 @@ Ce dossier contient les tests pour le serveur MCP TeamSpeak.
 - ✅ **Tests CI** (`.github/workflows/ci.yml`) : Tests de base automatisés
   - Vérification syntaxe Python
   - Tests d'import des modules
-  - Validation des 19 outils MCP
+  - Validation des 20 outils MCP
   - Build Docker
   - Tests de démarrage
 
@@ -22,7 +22,7 @@ Ce dossier contient les tests pour le serveur MCP TeamSpeak.
 
 ### **Tests d'Intégration Complets**
 
-Pour tester tous les 19 outils MCP avec un vrai serveur TeamSpeak :
+Pour tester tous les 20 outils MCP avec un vrai serveur TeamSpeak :
 
 ```bash
 # Démarrer l'environnement de test
@@ -49,7 +49,7 @@ Les tests d'intégration produisent un rapport détaillé :
 📊 TEAMSPEAK MCP INTEGRATION TEST REPORT
 ======================================================================
 📋 SUMMARY:
-   • Total MCP Tools: 19
+   • Total MCP Tools: 20
    • Actually Tested: 12
    • ✅ Successes: X
    • 🎯 Success Rate: X% (of testable tools)
@@ -92,9 +92,9 @@ Pour activer les tests d'intégration en CI (déconseillé) :
 
 ## 🎯 **Vue d'ensemble**
 
-Les tests d'intégration valident le fonctionnement de **tous les 19 outils MCP** avec une instance réelle de TeamSpeak 3 Server. Contrairement aux tests unitaires basiques, ces tests :
+Les tests d'intégration valident le fonctionnement de **tous les 20 outils MCP** avec une instance réelle de TeamSpeak 3 Server. Contrairement aux tests unitaires basiques, ces tests :
 
-- ✅ **Testent tous les outils** - Validation complète des 19 fonctionnalités
+- ✅ **Testent tous les outils** - Validation complète des 20 fonctionnalités
 - ✅ **Serveur réel** - Instance TeamSpeak 3 complète via Docker
 - ✅ **Extraction automatique** - Token admin extrait automatiquement
 - ✅ **Tests bout-en-bout** - De la connexion au nettoyage
@@ -155,13 +155,13 @@ docker-compose -f docker-compose.test.yml down --volumes
 
 ## 🧪 **Tests couverts**
 
-### **Tests de base (4/19)**
+### **Tests de base (4/20)**
 - `connect_to_server` - Connexion au serveur TeamSpeak
 - `server_info` - Informations du serveur  
 - `list_channels` - Liste des canaux
 - `list_clients` - Liste des clients connectés
 
-### **Tests de gestion des canaux (6/19)**
+### **Tests de gestion des canaux (6/20)**
 - `create_channel` - Création de canaux
 - `update_channel` - Modification des propriétés
 - `channel_info` - Informations détaillées
@@ -169,20 +169,23 @@ docker-compose -f docker-compose.test.yml down --volumes
 - `manage_channel_permissions` - Gestion des permissions
 - `delete_channel` - Suppression (dans cleanup)
 
-### **Tests de gestion des utilisateurs (3/19)**
+### **Tests de gestion des utilisateurs (3/20)**
 - `client_info_detailed` - Informations détaillées client
 - `manage_user_permissions` (list_groups) - Groupes serveur
 - `manage_user_permissions` (list_permissions) - Permissions
 
-### **Tests de messagerie (3/19)**
+### **Tests de messagerie (3/20)**
 - `send_channel_message` - Messages de canal
 - `send_private_message` - Messages privés
 - `poke_client` - Notifications d'alerte (pokes)
 
-### **Tests de gestion serveur (1/19)**
+### **Tests de gestion serveur (1/20)**
 - `update_server_settings` - Configuration serveur
 
-### **Tests non couverts actuellement (2/19)**
+### **Tests de diagnostic (1/20)**
+- `diagnose_permissions` - Diagnostic des permissions et résolution de problèmes
+
+### **Tests non couverts actuellement (2/20)**
 - `move_client` - Déplacement de clients (nécessite plusieurs clients)
 - `kick_client` / `ban_client` - Actions modératives (impact sur tests)
 
@@ -287,7 +290,7 @@ docker-compose -f docker-compose.test.yml run --rm teamspeak-mcp-test config
 ## 📈 **Métriques de qualité**
 
 ### **Objectifs de couverture**
-- 🎯 **17/19 outils** testés automatiquement (89%)
+- 🎯 **18/20 outils** testés automatiquement (90%)
 - 🎯 **Taux de réussite** > 95% en CI
 - 🎯 **Durée d'exécution** < 5 minutes
 - 🎯 **Stabilité** - Pas de flaky tests

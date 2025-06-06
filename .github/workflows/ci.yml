@@ -43,9 +43,9 @@ jobs:
         import teamspeak_mcp.server
         print('✅ Main server module imports successfully')
         
-        # Test that TOOLS is defined and contains 19 tools
+        # Test that TOOLS is defined and contains 20 tools
         from teamspeak_mcp.server import TOOLS
-        assert len(TOOLS) == 19, f'Expected 19 tools, got {len(TOOLS)}'
+        assert len(TOOLS) == 20, f'Expected 20 tools, got {len(TOOLS)}'
         print(f'✅ All {len(TOOLS)} MCP tools are defined')
         
         # Test that all tools have required fields
