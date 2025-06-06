@@ -11,13 +11,49 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🎵 Voice control (mute, unmute, kick, ban)
 - 📊 Server statistics
 
+## 🚀 Quick Start with Pre-built Images
+
+We provide pre-built Docker images via GitHub Container Registry for easy deployment:
+
+### Using Latest Release
+
+```bash
+# Pull the latest stable release
+docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
+
+# Run with environment variables
+docker run --rm -i \
+  -e TEAMSPEAK_HOST=your-server.example.com \
+  -e TEAMSPEAK_PASSWORD=your-password \
+  ghcr.io/marlburrow/teamspeak-mcp:latest
+```
+
+### Using Specific Version
+
+```bash
+# Use a specific version (recommended for production)
+docker pull ghcr.io/marlburrow/teamspeak-mcp:v1.0.0
+
+# With docker-compose (update docker-compose.yml)
+services:
+  teamspeak-mcp:
+    image: ghcr.io/marlburrow/teamspeak-mcp:v1.0.0
+    # ... rest of your configuration
+```
+
+### Available Tags
+
+- `latest` - Latest stable release
+- `v1.0.0`, `v1.0`, `v1` - Semantic versioning tags
+- `main` - Latest development build
+
 ## Installation
 
 ### 🐳 Docker Method (Recommended)
 
 1. Clone this repository:
 ```bash
-git clone <repo-url>
+git clone https://github.com/MarlBurroW/teamspeak-mcp.git
 cd teamspeak-mcp
 ```
 
@@ -32,7 +68,7 @@ docker-compose up -d
 
 1. Clone this repository:
 ```bash
-git clone <repo-url>
+git clone https://github.com/MarlBurroW/teamspeak-mcp.git
 cd teamspeak-mcp
 ```
 
@@ -100,9 +136,26 @@ TEAMSPEAK_SERVER_ID=1
 
 ## Claude Desktop Configuration
 
-### 🐳 With Docker
+### 🐳 With Pre-built Docker Image
 
 Add this configuration to your Claude Desktop config file:
+
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--env-file", "/path/to/your/.env",
+        "ghcr.io/marlburrow/teamspeak-mcp:latest"
+      ]
+    }
+  }
+}
+```
+
+### 🐳 With Local Docker Build
 
 ```json
 {
@@ -214,6 +267,14 @@ docker run --rm -it teamspeak-mcp
 - 🛡️ Use ServerQuery accounts with limited privileges
 - 🌐 Configure firewall to restrict ServerQuery port access
 - 🔄 Change ServerQuery passwords regularly
+
+## 📦 Release Process
+
+This project uses automated GitHub Actions for building and publishing Docker images:
+
+1. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0`
+2. **Automatic build**: GitHub Actions builds and pushes multi-arch images
+3. **Available images**: Images are published to `ghcr.io/marlburrow/teamspeak-mcp`
 
 ## 🆘 Troubleshooting
 

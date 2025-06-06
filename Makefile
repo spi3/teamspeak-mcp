@@ -4,6 +4,7 @@
 # Variables
 IMAGE_NAME = teamspeak-mcp
 CONTAINER_NAME = teamspeak-mcp
+GHCR_IMAGE = ghcr.io/marlburrow/teamspeak-mcp
 VERSION = 1.0.0
 
 # Help
@@ -23,6 +24,9 @@ build-no-cache: ## Build Docker image without cache
 run: ## Start MCP server with Docker Compose
 	docker-compose up -d
 
+run-ghcr: ## Start MCP server with pre-built GHCR image
+	docker-compose -f docker-compose.ghcr.yml up -d
+
 run-logs: ## Start MCP server with real-time logs
 	docker-compose up
 
@@ -39,12 +43,25 @@ test: ## Run tests in container
 test-local: ## Run tests with local image
 	docker run --rm -it --env-file .env $(IMAGE_NAME):latest python test_mcp.py
 
+test-ghcr: ## Run tests with GHCR image
+	docker run --rm -it --env-file .env $(GHCR_IMAGE):latest python test_mcp.py
+
 # Development
 shell: ## Open shell in container
 	docker run --rm -it --env-file .env --entrypoint /bin/bash $(IMAGE_NAME):latest
 
+shell-ghcr: ## Open shell in GHCR container
+	docker run --rm -it --env-file .env --entrypoint /bin/bash $(GHCR_IMAGE):latest
+
 debug: ## Start container in debug mode
 	docker run --rm -it --env-file .env --entrypoint /bin/bash $(IMAGE_NAME):latest
+
+# Registry operations
+pull: ## Pull latest image from GHCR
+	docker pull $(GHCR_IMAGE):latest
+
+pull-version: ## Pull specific version from GHCR
+	docker pull $(GHCR_IMAGE):$(VERSION)
 
 # Logs and monitoring
 logs: ## Show container logs
@@ -78,6 +95,32 @@ setup: ## Complete initial setup
 	$(MAKE) build
 	@echo "✅ Setup complete!"
 	@echo "💡 Modify .env then run: make run"
+
+setup-ghcr: ## Setup with pre-built GHCR image
+	@echo "Setting up TeamSpeak MCP with GHCR image..."
+	@if [ ! -f .env ]; then \
+		echo "Creating .env file..."; \
+		cp config.docker.env .env; \
+		echo "⚠️  Modify .env file with your TeamSpeak parameters"; \
+	fi
+	$(MAKE) pull
+	@echo "✅ Setup complete with GHCR image!"
+	@echo "💡 Modify .env then run: make run-ghcr"
+
+# Release management
+tag: ## Create and push a new version tag
+	@echo "Current version: $(VERSION)"
+	@read -p "Enter new version (e.g., 1.0.1): " NEW_VERSION; \
+	git tag v$$NEW_VERSION && \
+	git push origin v$$NEW_VERSION && \
+	echo "✅ Tagged and pushed v$$NEW_VERSION"
+
+release: ## Show release instructions
+	@echo "🚀 Release Process:"
+	@echo "1. Update VERSION in Makefile"
+	@echo "2. Run: make tag"
+	@echo "3. GitHub Actions will automatically build and push the image"
+	@echo "4. Image will be available at: $(GHCR_IMAGE):VERSION"
 
 # Docker Compose shortcuts
 up: run ## Alias for 'run'
