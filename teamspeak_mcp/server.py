@@ -1304,12 +1304,34 @@ async def _diagnose_permissions() -> list[TextContent]:
     
     # Test 1: Basic whoami
     try:
-        whoami = await asyncio.to_thread(ts_connection.connection.whoami)
+        whoami_response = await asyncio.to_thread(ts_connection.connection.whoami)
+        
+        # Handle TS3QueryResponse object - try different access methods
+        if hasattr(whoami_response, 'data') and whoami_response.data:
+            whoami = whoami_response.data[0] if whoami_response.data else {}
+        elif hasattr(whoami_response, '__iter__') and not isinstance(whoami_response, str):
+            whoami = list(whoami_response)[0] if whoami_response else {}
+        else:
+            whoami = whoami_response
+            
+        # Helper function to safely get values
+        def safe_get(obj, key, default='N/A'):
+            if hasattr(obj, 'get'):
+                return obj.get(key, default)
+            elif hasattr(obj, key):
+                return getattr(obj, key, default)
+            else:
+                return default
+        
         result += "✅ **Connexion de base** : OK\n"
-        result += f"   - Client ID: {whoami.get('client_id', 'N/A')}\n"
-        result += f"   - Database ID: {whoami.get('client_database_id', 'N/A')}\n"
-        result += f"   - Nickname: {whoami.get('client_nickname', 'N/A')}\n"
-        result += f"   - Type: {'ServerQuery' if whoami.get('client_type') == '1' else 'Regular'}\n\n"
+        result += f"   - Client ID: {safe_get(whoami, 'client_id')}\n"
+        result += f"   - Database ID: {safe_get(whoami, 'client_database_id')}\n"
+        result += f"   - Nickname: {safe_get(whoami, 'client_nickname')}\n"
+        result += f"   - Type: {'ServerQuery' if safe_get(whoami, 'client_type') == '1' else 'Regular'}\n\n"
+        
+        # Store client_database_id for later use
+        client_db_id = safe_get(whoami, 'client_database_id')
+        
     except Exception as e:
         result += f"❌ **Connexion de base** : ÉCHEC\n   Erreur: {e}\n\n"
         return [TextContent(type="text", text=result)]
@@ -1337,18 +1359,30 @@ async def _diagnose_permissions() -> list[TextContent]:
     
     # Test 5: Try to get current permissions
     try:
-        client_info = await asyncio.to_thread(ts_connection.connection.whoami)
-        client_db_id = client_info.get('client_database_id')
-        
-        if client_db_id:
+        if client_db_id and client_db_id != 'N/A':
             # Try to get server groups
             try:
-                groups = await asyncio.to_thread(ts_connection.connection.servergroupsbyclientid, cldbid=client_db_id)
+                groups_response = await asyncio.to_thread(ts_connection.connection.servergroupsbyclientid, cldbid=client_db_id)
+                
+                # Handle response format
+                if hasattr(groups_response, 'data') and groups_response.data:
+                    groups = groups_response.data
+                elif hasattr(groups_response, '__iter__') and not isinstance(groups_response, str):
+                    groups = list(groups_response)
+                else:
+                    groups = [groups_response] if groups_response else []
+                
                 result += f"✅ **Groupes serveur** : OK\n"
                 for group in groups[:3]:  # Limit to first 3 groups
-                    result += f"   - {group.get('name', 'N/A')} (ID: {group.get('sgid', 'N/A')})\n"
+                    group_name = safe_get(group, 'name', 'N/A')
+                    group_id = safe_get(group, 'sgid', 'N/A')
+                    result += f"   - {group_name} (ID: {group_id})\n"
+                    
             except Exception as e:
                 result += f"❌ **Groupes serveur** : ÉCHEC - {e}\n"
+        else:
+            result += f"⚠️ **Groupes serveur** : Impossible (pas de client_database_id)\n"
+            
     except Exception as e:
         result += f"❌ **Analyse des permissions** : ÉCHEC - {e}\n"
     
