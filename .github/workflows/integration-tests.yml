@@ -256,7 +256,10 @@ jobs:
           if echo -e "version\nquit" | nc -w 5 localhost 10011 2>/dev/null | grep -q "version="; then
             echo "✅ ServerQuery connection confirmed, running integration tests..."
             
-            # Run integration tests
+            # Run integration tests with detailed error capturing
+            echo "🚀 Starting integration tests with enhanced error handling..."
+            set +e  # Don't exit on error, capture it
+            
             docker compose -f docker-compose.test.yml run --rm \
               -e TEAMSPEAK_HOST=$TEAMSPEAK_HOST \
               -e TEAMSPEAK_PORT=$TEAMSPEAK_PORT \
@@ -264,6 +267,34 @@ jobs:
               -e TEAMSPEAK_PASSWORD="$TEAMSPEAK_PASSWORD" \
               -e TEAMSPEAK_SERVER_ID=$TEAMSPEAK_SERVER_ID \
               teamspeak-mcp-test integration-test
+            
+            test_exit_code=$?
+            set -e  # Re-enable exit on error
+            
+            echo "📊 Integration test exit code: $test_exit_code"
+            
+            if [ $test_exit_code -ne 0 ]; then
+              echo "❌ Integration tests failed with exit code $test_exit_code"
+              echo "🔍 Diagnostic information:"
+              echo "📋 Recent TeamSpeak server logs:"
+              docker compose -f docker-compose.test.yml logs --tail=30 teamspeak3-server
+              echo "📋 MCP container logs:"
+              docker compose -f docker-compose.test.yml logs --tail=30 teamspeak-mcp-test || echo "No MCP container logs available"
+              echo "📊 Container status:"
+              docker compose -f docker-compose.test.yml ps -a
+              
+              # Try to get partial test results if available
+              if [ -f test_results/integration_results.json ]; then
+                echo "📋 Partial test results found:"
+                cat test_results/integration_results.json | head -20
+              else
+                echo "📋 No test results file found"
+              fi
+              
+              exit $test_exit_code
+            else
+              echo "✅ Integration tests completed successfully!"
+            fi
           else
             echo "❌ ServerQuery still not responding"
             echo "📋 Attempting basic MCP connection test anyway..."

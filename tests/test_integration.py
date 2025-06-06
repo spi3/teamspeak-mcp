@@ -49,6 +49,25 @@ class IntegrationTester:
         print(f"📡 Connecting to TS3: {self.connection.host}:{self.connection.port}")
         print(f"👤 User: {self.connection.user}")
         
+        # Test de connexion initial avec gestion d'erreur détaillée
+        try:
+            print("🔌 Testing initial TeamSpeak connection...")
+            success = await self.connection.connect()
+            if success:
+                print("✅ Initial connection successful")
+            else:
+                print("❌ Initial connection failed")
+                raise Exception("Failed to establish initial connection to TeamSpeak server")
+        except Exception as e:
+            print(f"💥 Connection setup failed: {e}")
+            print(f"🔍 Connection details:")
+            print(f"  Host: {self.connection.host}")
+            print(f"  Port: {self.connection.port}")
+            print(f"  User: {self.connection.user}")
+            print(f"  Password set: {'Yes' if self.connection.password else 'No'}")
+            print(f"  Server ID: {self.connection.server_id}")
+            raise
+    
     async def wait_for_ts3_server(self, max_wait=120):
         """Attendre que le serveur TeamSpeak soit prêt."""
         print("⏳ Waiting for TeamSpeak server to be ready...")
@@ -430,10 +449,36 @@ async def main():
     tester = IntegrationTester()
     
     try:
+        print("🚀 Starting TeamSpeak MCP Integration Tests")
+        print("=" * 60)
         await tester.setup()
         await tester.run_all_tests()
+        print("🎉 All integration tests completed successfully!")
     except Exception as e:
-        print(f"💥 Test setup failed: {e}")
+        print(f"💥 Integration tests failed with error: {e}")
+        print(f"🔍 Error details:")
+        print(f"  Error type: {type(e).__name__}")
+        print(f"  Error message: {str(e)}")
+        
+        # Print traceback for debugging
+        import traceback
+        print(f"📋 Full traceback:")
+        traceback.print_exc()
+        
+        # Try to save whatever results we have
+        try:
+            if tester.test_results:
+                print(f"💾 Saving partial test results ({len(tester.test_results)} tests)...")
+                os.makedirs("/app/test_results", exist_ok=True)
+                with open("/app/test_results/integration_results.json", "w") as f:
+                    json.dump(tester.test_results, f, indent=2)
+                print("✅ Partial results saved")
+            else:
+                print("📋 No test results to save")
+        except Exception as save_error:
+            print(f"⚠️ Failed to save partial results: {save_error}")
+        
+        print("💥 Exiting with error code 1")
         sys.exit(1)
 
 if __name__ == "__main__":
