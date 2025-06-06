@@ -790,21 +790,41 @@ async def _channel_info(args: dict) -> list[TextContent]:
     channel_id = args["channel_id"]
     
     try:
-        info = await asyncio.to_thread(ts_connection.connection.channelinfo, cid=channel_id)
+        response = await asyncio.to_thread(ts_connection.connection.channelinfo, cid=channel_id)
+        
+        # Handle TS3QueryResponse object - try different access methods
+        if hasattr(response, 'data') and response.data:
+            # If response has .data attribute (list of dicts)
+            info = response.data[0] if response.data else {}
+        elif hasattr(response, '__iter__') and not isinstance(response, str):
+            # If response is iterable (list of dicts)
+            info = list(response)[0] if response else {}
+        else:
+            # If response is directly a dict-like object
+            info = response
+        
+        # Helper function to safely get values
+        def safe_get(key, default='N/A'):
+            if hasattr(info, 'get'):
+                return info.get(key, default)
+            elif hasattr(info, key):
+                return getattr(info, key, default)
+            else:
+                return default
         
         result = "📋 **Channel Information:**\n\n"
-        result += f"• **ID**: {info.get('cid', 'N/A')}\n"
-        result += f"• **Name**: {info.get('channel_name', 'N/A')}\n"
-        result += f"• **Description**: {info.get('channel_description', 'N/A')}\n"
-        result += f"• **Topic**: {info.get('channel_topic', 'N/A')}\n"
-        result += f"• **Password Protected**: {'Yes' if info.get('channel_flag_password') == '1' else 'No'}\n"
-        result += f"• **Max Clients**: {info.get('channel_maxclients', 'Unlimited')}\n"
-        result += f"• **Current Clients**: {info.get('total_clients', '0')}\n"
-        result += f"• **Talk Power Required**: {info.get('channel_needed_talk_power', '0')}\n"
-        result += f"• **Codec**: {info.get('channel_codec', 'N/A')}\n"
-        result += f"• **Codec Quality**: {info.get('channel_codec_quality', 'N/A')}\n"
-        result += f"• **Type**: {'Permanent' if info.get('channel_flag_permanent') == '1' else 'Temporary'}\n"
-        result += f"• **Order**: {info.get('channel_order', 'N/A')}\n"
+        result += f"• **ID**: {safe_get('cid')}\n"
+        result += f"• **Name**: {safe_get('channel_name')}\n"
+        result += f"• **Description**: {safe_get('channel_description')}\n"
+        result += f"• **Topic**: {safe_get('channel_topic')}\n"
+        result += f"• **Password Protected**: {'Yes' if safe_get('channel_flag_password') == '1' else 'No'}\n"
+        result += f"• **Max Clients**: {safe_get('channel_maxclients', 'Unlimited')}\n"
+        result += f"• **Current Clients**: {safe_get('total_clients', '0')}\n"
+        result += f"• **Talk Power Required**: {safe_get('channel_needed_talk_power', '0')}\n"
+        result += f"• **Codec**: {safe_get('channel_codec')}\n"
+        result += f"• **Codec Quality**: {safe_get('channel_codec_quality')}\n"
+        result += f"• **Type**: {'Permanent' if safe_get('channel_flag_permanent') == '1' else 'Temporary'}\n"
+        result += f"• **Order**: {safe_get('channel_order')}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -871,26 +891,51 @@ async def _client_info_detailed(args: dict) -> list[TextContent]:
     client_id = args["client_id"]
     
     try:
-        info = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+        response = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+        
+        # Handle TS3QueryResponse object - try different access methods
+        if hasattr(response, 'data') and response.data:
+            # If response has .data attribute (list of dicts)
+            info = response.data[0] if response.data else {}
+        elif hasattr(response, '__iter__') and not isinstance(response, str):
+            # If response is iterable (list of dicts)
+            info = list(response)[0] if response else {}
+        else:
+            # If response is directly a dict-like object
+            info = response
+        
+        # Helper function to safely get values
+        def safe_get(key, default='N/A'):
+            if hasattr(info, 'get'):
+                return info.get(key, default)
+            elif hasattr(info, key):
+                return getattr(info, key, default)
+            else:
+                return default
         
         result = "👤 **Client Information:**\n\n"
-        result += f"• **ID**: {info.get('clid', 'N/A')}\n"
-        result += f"• **Database ID**: {info.get('client_database_id', 'N/A')}\n"
-        result += f"• **Nickname**: {info.get('client_nickname', 'N/A')}\n"
-        result += f"• **Unique ID**: {info.get('client_unique_identifier', 'N/A')[:32]}...\n"
-        result += f"• **Channel ID**: {info.get('cid', 'N/A')}\n"
-        result += f"• **Talk Power**: {info.get('client_talk_power', '0')}\n"
-        result += f"• **Client Type**: {'ServerQuery' if info.get('client_type') == '1' else 'Regular'}\n"
-        result += f"• **Platform**: {info.get('client_platform', 'N/A')}\n"
-        result += f"• **Version**: {info.get('client_version', 'N/A')}\n"
-        result += f"• **Away**: {'Yes' if info.get('client_away') == '1' else 'No'}\n"
-        result += f"• **Away Message**: {info.get('client_away_message', 'N/A')}\n"
-        result += f"• **Input Muted**: {'Yes' if info.get('client_input_muted') == '1' else 'No'}\n"
-        result += f"• **Output Muted**: {'Yes' if info.get('client_output_muted') == '1' else 'No'}\n"
-        result += f"• **Connected Since**: {info.get('client_created', 'N/A')}\n"
-        result += f"• **Last Connected**: {info.get('client_lastconnected', 'N/A')}\n"
-        result += f"• **Connection Time**: {info.get('connection_connected_time', 'N/A')}ms\n"
-        result += f"• **Country**: {info.get('client_country', 'N/A')}\n"
+        result += f"• **ID**: {safe_get('clid')}\n"
+        result += f"• **Database ID**: {safe_get('client_database_id')}\n"
+        result += f"• **Nickname**: {safe_get('client_nickname')}\n"
+        
+        unique_id = safe_get('client_unique_identifier')
+        if unique_id and unique_id != 'N/A' and len(unique_id) > 32:
+            unique_id = unique_id[:32] + "..."
+        result += f"• **Unique ID**: {unique_id}\n"
+        
+        result += f"• **Channel ID**: {safe_get('cid')}\n"
+        result += f"• **Talk Power**: {safe_get('client_talk_power', '0')}\n"
+        result += f"• **Client Type**: {'ServerQuery' if safe_get('client_type') == '1' else 'Regular'}\n"
+        result += f"• **Platform**: {safe_get('client_platform')}\n"
+        result += f"• **Version**: {safe_get('client_version')}\n"
+        result += f"• **Away**: {'Yes' if safe_get('client_away') == '1' else 'No'}\n"
+        result += f"• **Away Message**: {safe_get('client_away_message')}\n"
+        result += f"• **Input Muted**: {'Yes' if safe_get('client_input_muted') == '1' else 'No'}\n"
+        result += f"• **Output Muted**: {'Yes' if safe_get('client_output_muted') == '1' else 'No'}\n"
+        result += f"• **Connected Since**: {safe_get('client_created')}\n"
+        result += f"• **Last Connected**: {safe_get('client_lastconnected')}\n"
+        result += f"• **Connection Time**: {safe_get('connection_connected_time')}ms\n"
+        result += f"• **Country**: {safe_get('client_country')}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
