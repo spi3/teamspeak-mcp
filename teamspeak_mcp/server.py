@@ -277,335 +277,6 @@ TOOLS = [
     ),
 ]
 
-class TeamSpeakMCPServer:
-    """MCP Server for TeamSpeak."""
-    
-    def __init__(self):
-        self.server = Server("teamspeak-mcp")
-    
-    async def handle_list_tools(self, request: ListToolsRequest) -> ListToolsResult:
-        """Return list of available tools."""
-        return ListToolsResult(tools=TOOLS)
-    
-    async def handle_call_tool(self, request: CallToolRequest) -> CallToolResult:
-        """Execute a requested tool."""
-        try:
-            if request.params.name == "connect_to_server":
-                return await self._connect_to_server()
-            elif request.params.name == "send_channel_message":
-                return await self._send_channel_message(request.params.arguments)
-            elif request.params.name == "send_private_message":
-                return await self._send_private_message(request.params.arguments)
-            elif request.params.name == "list_clients":
-                return await self._list_clients()
-            elif request.params.name == "list_channels":
-                return await self._list_channels()
-            elif request.params.name == "create_channel":
-                return await self._create_channel(request.params.arguments)
-            elif request.params.name == "delete_channel":
-                return await self._delete_channel(request.params.arguments)
-            elif request.params.name == "move_client":
-                return await self._move_client(request.params.arguments)
-            elif request.params.name == "kick_client":
-                return await self._kick_client(request.params.arguments)
-            elif request.params.name == "ban_client":
-                return await self._ban_client(request.params.arguments)
-            elif request.params.name == "server_info":
-                return await self._server_info()
-            else:
-                raise ValueError(f"Unknown tool: {request.params.name}")
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"Error: {str(e)}")],
-                isError=True
-            )
-    
-    async def _connect_to_server(self) -> CallToolResult:
-        """Connect to TeamSpeak server."""
-        success = await ts_connection.connect()
-        if success:
-            return CallToolResult(
-                content=[TextContent(type="text", text="✅ TeamSpeak server connection successful")]
-            )
-        else:
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ TeamSpeak server connection failed")],
-                isError=True
-            )
-    
-    async def _send_channel_message(self, args: dict) -> CallToolResult:
-        """Send message to a channel."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        message = args["message"]
-        channel_id = args.get("channel_id")
-        
-        try:
-            if channel_id:
-                await asyncio.to_thread(
-                    ts_connection.connection.sendtextmessage,
-                    targetmode=2, target=channel_id, msg=message
-                )
-            else:
-                await asyncio.to_thread(
-                    ts_connection.connection.sendtextmessage,
-                    targetmode=2, target=0, msg=message
-                )
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Message sent to channel: {message}")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error sending message: {e}")],
-                isError=True
-            )
-    
-    async def _send_private_message(self, args: dict) -> CallToolResult:
-        """Send private message."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        client_id = args["client_id"]
-        message = args["message"]
-        
-        try:
-            await asyncio.to_thread(
-                ts_connection.connection.sendtextmessage,
-                targetmode=1, target=client_id, msg=message
-            )
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Private message sent to client {client_id}: {message}")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error sending private message: {e}")],
-                isError=True
-            )
-    
-    async def _list_clients(self) -> CallToolResult:
-        """List connected clients."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        try:
-            clients = await asyncio.to_thread(ts_connection.connection.clientlist)
-            
-            result = "👥 **Connected clients:**\n\n"
-            for client in clients:
-                result += f"• **ID {client.get('clid')}**: {client.get('client_nickname')} "
-                result += f"(Channel: {client.get('cid')})\n"
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=result)]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error retrieving clients: {e}")],
-                isError=True
-            )
-    
-    async def _list_channels(self) -> CallToolResult:
-        """List channels."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        try:
-            channels = await asyncio.to_thread(ts_connection.connection.channellist)
-            
-            result = "📋 **Available channels:**\n\n"
-            for channel in channels:
-                result += f"• **ID {channel.get('cid')}**: {channel.get('channel_name')}\n"
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=result)]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error retrieving channels: {e}")],
-                isError=True
-            )
-    
-    async def _create_channel(self, args: dict) -> CallToolResult:
-        """Create a new channel."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        name = args["name"]
-        parent_id = args.get("parent_id", 0)
-        permanent = args.get("permanent", False)
-        
-        try:
-            channel_type = 1 if permanent else 0
-            result = await asyncio.to_thread(
-                ts_connection.connection.channelcreate,
-                channel_name=name,
-                channel_flag_permanent=permanent,
-                cpid=parent_id
-            )
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Channel '{name}' created successfully")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error creating channel: {e}")],
-                isError=True
-            )
-    
-    async def _delete_channel(self, args: dict) -> CallToolResult:
-        """Delete a channel."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        channel_id = args["channel_id"]
-        force = args.get("force", False)
-        
-        try:
-            await asyncio.to_thread(
-                ts_connection.connection.channeldelete,
-                cid=channel_id, force=1 if force else 0
-            )
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Channel {channel_id} deleted successfully")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error deleting channel: {e}")],
-                isError=True
-            )
-    
-    async def _move_client(self, args: dict) -> CallToolResult:
-        """Move a client."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        client_id = args["client_id"]
-        channel_id = args["channel_id"]
-        
-        try:
-            await asyncio.to_thread(
-                ts_connection.connection.clientmove,
-                clid=client_id, cid=channel_id
-            )
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Client {client_id} moved to channel {channel_id}")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error moving client: {e}")],
-                isError=True
-            )
-    
-    async def _kick_client(self, args: dict) -> CallToolResult:
-        """Kick a client."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        client_id = args["client_id"]
-        reason = args.get("reason", "Expelled by AI")
-        from_server = args.get("from_server", False)
-        
-        try:
-            kick_type = 5 if from_server else 4  # 5 = server, 4 = channel
-            await asyncio.to_thread(
-                ts_connection.connection.clientkick,
-                clid=client_id, reasonid=kick_type, reasonmsg=reason
-            )
-            
-            location = "from server" if from_server else "from channel"
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Client {client_id} kicked {location}: {reason}")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error kicking client: {e}")],
-                isError=True
-            )
-    
-    async def _ban_client(self, args: dict) -> CallToolResult:
-        """Ban a client."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        client_id = args["client_id"]
-        reason = args.get("reason", "Banned by AI")
-        duration = args.get("duration", 0)
-        
-        try:
-            await asyncio.to_thread(
-                ts_connection.connection.banclient,
-                clid=client_id, time=duration, banreason=reason
-            )
-            
-            duration_text = "permanently" if duration == 0 else f"for {duration} seconds"
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Client {client_id} banned {duration_text}: {reason}")]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error banning client: {e}")],
-                isError=True
-            )
-    
-    async def _server_info(self) -> CallToolResult:
-        """Get server information."""
-        if not ts_connection.is_connected():
-            return CallToolResult(
-                content=[TextContent(type="text", text="❌ Not connected to TeamSpeak server")],
-                isError=True
-            )
-        
-        try:
-            info = await asyncio.to_thread(ts_connection.connection.serverinfo)
-            
-            result = "🖥️ **TeamSpeak Server Information:**\n\n"
-            result += f"• **Name**: {info.get('virtualserver_name', 'N/A')}\n"
-            result += f"• **Version**: {info.get('virtualserver_version', 'N/A')}\n"
-            result += f"• **Platform**: {info.get('virtualserver_platform', 'N/A')}\n"
-            result += f"• **Clients**: {info.get('virtualserver_clientsonline', 'N/A')}/{info.get('virtualserver_maxclients', 'N/A')}\n"
-            result += f"• **Uptime**: {info.get('virtualserver_uptime', 'N/A')} seconds\n"
-            
-            return CallToolResult(
-                content=[TextContent(type="text", text=result)]
-            )
-        except Exception as e:
-            return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error retrieving server info: {e}")],
-                isError=True
-            )
-
 async def run_server():
     """Run the MCP server."""
     global ts_connection
@@ -622,11 +293,44 @@ async def run_server():
         server_id=args.server_id
     )
     
-    server_instance = TeamSpeakMCPServer()
+    # Create server instance
+    server = Server("teamspeak-mcp")
     
-    # Configure handlers
-    server_instance.server.list_tools = server_instance.handle_list_tools
-    server_instance.server.call_tool = server_instance.handle_call_tool
+    @server.list_tools()
+    async def handle_list_tools() -> list[Tool]:
+        """Return list of available tools."""
+        return TOOLS
+    
+    @server.call_tool()
+    async def handle_call_tool(name: str, arguments: dict) -> list[TextContent]:
+        """Execute a requested tool."""
+        try:
+            if name == "connect_to_server":
+                return await _connect_to_server()
+            elif name == "send_channel_message":
+                return await _send_channel_message(arguments)
+            elif name == "send_private_message":
+                return await _send_private_message(arguments)
+            elif name == "list_clients":
+                return await _list_clients()
+            elif name == "list_channels":
+                return await _list_channels()
+            elif name == "create_channel":
+                return await _create_channel(arguments)
+            elif name == "delete_channel":
+                return await _delete_channel(arguments)
+            elif name == "move_client":
+                return await _move_client(arguments)
+            elif name == "kick_client":
+                return await _kick_client(arguments)
+            elif name == "ban_client":
+                return await _ban_client(arguments)
+            elif name == "server_info":
+                return await _server_info()
+            else:
+                raise ValueError(f"Unknown tool: {name}")
+        except Exception as e:
+            raise Exception(f"Error: {str(e)}")
     
     logger.info("🚀 Starting TeamSpeak MCP server...")
     logger.info(f"Host: {ts_connection.host}:{ts_connection.port}")
@@ -635,13 +339,13 @@ async def run_server():
     
     try:
         async with stdio_server() as (read_stream, write_stream):
-            await server_instance.server.run(
+            await server.run(
                 read_stream,
                 write_stream,
                 InitializationOptions(
                     server_name="teamspeak",
                     server_version="1.0.0",
-                    capabilities=server_instance.server.get_capabilities(
+                    capabilities=server.get_capabilities(
                         notification_options=None,
                         experimental_capabilities=None,
                     ),
@@ -650,6 +354,207 @@ async def run_server():
     finally:
         if ts_connection:
             await ts_connection.disconnect()
+
+async def _connect_to_server() -> list[TextContent]:
+    """Connect to TeamSpeak server."""
+    success = await ts_connection.connect()
+    if success:
+        return [TextContent(type="text", text="✅ TeamSpeak server connection successful")]
+    else:
+        raise Exception("TeamSpeak server connection failed")
+
+async def _send_channel_message(args: dict) -> list[TextContent]:
+    """Send message to a channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    message = args["message"]
+    channel_id = args.get("channel_id")
+    
+    try:
+        if channel_id:
+            await asyncio.to_thread(
+                ts_connection.connection.sendtextmessage,
+                targetmode=2, target=channel_id, msg=message
+            )
+        else:
+            await asyncio.to_thread(
+                ts_connection.connection.sendtextmessage,
+                targetmode=2, target=0, msg=message
+            )
+        
+        return [TextContent(type="text", text=f"✅ Message sent to channel: {message}")]
+    except Exception as e:
+        raise Exception(f"Error sending message: {e}")
+
+async def _send_private_message(args: dict) -> list[TextContent]:
+    """Send private message."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    message = args["message"]
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.sendtextmessage,
+            targetmode=1, target=client_id, msg=message
+        )
+        
+        return [TextContent(type="text", text=f"✅ Private message sent to client {client_id}: {message}")]
+    except Exception as e:
+        raise Exception(f"Error sending private message: {e}")
+
+async def _list_clients() -> list[TextContent]:
+    """List connected clients."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        clients = await asyncio.to_thread(ts_connection.connection.clientlist)
+        
+        result = "👥 **Connected clients:**\n\n"
+        for client in clients:
+            result += f"• **ID {client.get('clid')}**: {client.get('client_nickname')} "
+            result += f"(Channel: {client.get('cid')})\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving clients: {e}")
+
+async def _list_channels() -> list[TextContent]:
+    """List channels."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        channels = await asyncio.to_thread(ts_connection.connection.channellist)
+        
+        result = "📋 **Available channels:**\n\n"
+        for channel in channels:
+            result += f"• **ID {channel.get('cid')}**: {channel.get('channel_name')}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving channels: {e}")
+
+async def _create_channel(args: dict) -> list[TextContent]:
+    """Create a new channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    name = args["name"]
+    parent_id = args.get("parent_id", 0)
+    permanent = args.get("permanent", False)
+    
+    try:
+        channel_type = 1 if permanent else 0
+        result = await asyncio.to_thread(
+            ts_connection.connection.channelcreate,
+            channel_name=name,
+            channel_flag_permanent=permanent,
+            cpid=parent_id
+        )
+        
+        return [TextContent(type="text", text=f"✅ Channel '{name}' created successfully")]
+    except Exception as e:
+        raise Exception(f"Error creating channel: {e}")
+
+async def _delete_channel(args: dict) -> list[TextContent]:
+    """Delete a channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    force = args.get("force", False)
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.channeldelete,
+            cid=channel_id, force=1 if force else 0
+        )
+        
+        return [TextContent(type="text", text=f"✅ Channel {channel_id} deleted successfully")]
+    except Exception as e:
+        raise Exception(f"Error deleting channel: {e}")
+
+async def _move_client(args: dict) -> list[TextContent]:
+    """Move a client."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    channel_id = args["channel_id"]
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.clientmove,
+            clid=client_id, cid=channel_id
+        )
+        
+        return [TextContent(type="text", text=f"✅ Client {client_id} moved to channel {channel_id}")]
+    except Exception as e:
+        raise Exception(f"Error moving client: {e}")
+
+async def _kick_client(args: dict) -> list[TextContent]:
+    """Kick a client."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    reason = args.get("reason", "Expelled by AI")
+    from_server = args.get("from_server", False)
+    
+    try:
+        kick_type = 5 if from_server else 4  # 5 = server, 4 = channel
+        await asyncio.to_thread(
+            ts_connection.connection.clientkick,
+            clid=client_id, reasonid=kick_type, reasonmsg=reason
+        )
+        
+        location = "from server" if from_server else "from channel"
+        return [TextContent(type="text", text=f"✅ Client {client_id} kicked {location}: {reason}")]
+    except Exception as e:
+        raise Exception(f"Error kicking client: {e}")
+
+async def _ban_client(args: dict) -> list[TextContent]:
+    """Ban a client."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    reason = args.get("reason", "Banned by AI")
+    duration = args.get("duration", 0)
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.banclient,
+            clid=client_id, time=duration, banreason=reason
+        )
+        
+        duration_text = "permanently" if duration == 0 else f"for {duration} seconds"
+        return [TextContent(type="text", text=f"✅ Client {client_id} banned {duration_text}: {reason}")]
+    except Exception as e:
+        raise Exception(f"Error banning client: {e}")
+
+async def _server_info() -> list[TextContent]:
+    """Get server information."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        info = await asyncio.to_thread(ts_connection.connection.serverinfo)
+        
+        result = "🖥️ **TeamSpeak Server Information:**\n\n"
+        result += f"• **Name**: {info.get('virtualserver_name', 'N/A')}\n"
+        result += f"• **Version**: {info.get('virtualserver_version', 'N/A')}\n"
+        result += f"• **Platform**: {info.get('virtualserver_platform', 'N/A')}\n"
+        result += f"• **Clients**: {info.get('virtualserver_clientsonline', 'N/A')}/{info.get('virtualserver_maxclients', 'N/A')}\n"
+        result += f"• **Uptime**: {info.get('virtualserver_uptime', 'N/A')} seconds\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving server info: {e}")
 
 def main():
     """Entry point for setuptools."""
