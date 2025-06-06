@@ -2,6 +2,12 @@
 
 A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models like Claude.
 
+## Requirements
+
+- **Python 3.10+** (required by Model Context Protocol SDK)
+- **Docker** (optional, for containerized deployment)
+- **TeamSpeak 3 Server** with ServerQuery enabled
+
 ## Features
 
 - 🎯 Connect to TeamSpeak servers
@@ -65,6 +71,8 @@ docker-compose up -d
 ```
 
 ### 🐍 Local Python Installation
+
+**Prerequisites**: Python 3.10 or higher
 
 1. Clone this repository:
 ```bash
@@ -290,6 +298,10 @@ This project uses automated GitHub Actions for building and publishing Docker im
 
 3. **"Virtual server not found"**
    - Check virtual server ID with `serverlist`
+
+4. **"Python version error"**
+   - Ensure you're using Python 3.10 or higher
+   - The MCP library requires Python 3.10+
 
 ### Logs
 ```bash
