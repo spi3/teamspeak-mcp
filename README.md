@@ -55,7 +55,19 @@ services:
 
 ## Installation
 
-### 🐳 Docker Method (Recommended)
+### 🚀 **Quick Install (Recommended)**
+
+**Using uvx (like other MCP servers):**
+```bash
+uvx install teamspeak-mcp
+```
+
+**Using pip:**
+```bash
+pip install teamspeak-mcp
+```
+
+### 🐳 **Docker Method**
 
 1. Clone this repository:
 ```bash
@@ -70,7 +82,7 @@ cd teamspeak-mcp
 docker-compose up -d
 ```
 
-### 🐍 Local Python Installation
+### 🐍 **Local Development Installation**
 
 **Prerequisites**: Python 3.10 or higher
 
@@ -144,9 +156,51 @@ TEAMSPEAK_SERVER_ID=1
 
 ## Claude Desktop Configuration
 
-### 🐳 With Pre-built Docker Image
+### 🎯 **Standard MCP Configuration (Recommended)**
 
-**⚠️ Recommended Configuration** (Using Claude's env section):
+**Using command line arguments (like other MCP servers):**
+
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "uvx",
+      "args": [
+        "teamspeak-mcp",
+        "--host", "ts.obsmania.com",
+        "--port", "10011",
+        "--user", "claude",
+        "--password", "QtIjZoCX",
+        "--server-id", "1"
+      ]
+    }
+  }
+}
+```
+
+**Alternative with Python directly:**
+
+```json
+{
+  "mcpServers": {
+    "teamspeak": {
+      "command": "python",
+      "args": [
+        "-m", "teamspeak_mcp.server",
+        "--host", "ts.obsmania.com",
+        "--port", "10011",
+        "--user", "claude",
+        "--password", "QtIjZoCX",
+        "--server-id", "1"
+      ]
+    }
+  }
+}
+```
+
+### 🐳 **Docker Configuration**
+
+**Using environment variables (working method):**
 
 ```json
 {
@@ -169,11 +223,11 @@ TEAMSPEAK_SERVER_ID=1
 }
 ```
 
-**Alternative 1: Using .env file**
+**Using .env file:**
 
 First, create a `.env` file with your credentials:
 ```bash
-# Save this as ~/.teamspeak-mcp.env (or any path you prefer)
+# Save this as ~/.teamspeak-mcp.env
 TEAMSPEAK_HOST=ts.obsmania.com
 TEAMSPEAK_PORT=10011
 TEAMSPEAK_USER=claude
@@ -190,27 +244,6 @@ Then configure Claude Desktop:
       "args": [
         "run", "--rm", "-i",
         "--env-file", "/Users/your-username/.teamspeak-mcp.env",
-        "ghcr.io/marlburrow/teamspeak-mcp:latest"
-      ]
-    }
-  }
-}
-```
-
-**Alternative 2: Environment variables in args (may have issues)**
-
-```json
-{
-  "mcpServers": {
-    "teamspeak": {
-      "command": "docker",
-      "args": [
-        "run", "--rm", "-i",
-        "-e", "TEAMSPEAK_HOST=ts.obsmania.com",
-        "-e", "TEAMSPEAK_PORT=10011",
-        "-e", "TEAMSPEAK_USER=claude",
-        "-e", "TEAMSPEAK_PASSWORD=QtIjZoCX",
-        "-e", "TEAMSPEAK_SERVER_ID=1",
         "ghcr.io/marlburrow/teamspeak-mcp:latest"
       ]
     }

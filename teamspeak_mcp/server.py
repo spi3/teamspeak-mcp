@@ -2,6 +2,7 @@
 TeamSpeak MCP Server - Allows controlling TeamSpeak from AI models.
 """
 
+import argparse
 import asyncio
 import logging
 import os
@@ -25,16 +26,32 @@ from pydantic import BaseModel
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="TeamSpeak MCP Server")
+    parser.add_argument("--host", default=os.getenv("TEAMSPEAK_HOST", "localhost"),
+                       help="TeamSpeak server host")
+    parser.add_argument("--port", type=int, default=int(os.getenv("TEAMSPEAK_PORT", "10011")),
+                       help="TeamSpeak ServerQuery port")
+    parser.add_argument("--user", default=os.getenv("TEAMSPEAK_USER", "serveradmin"),
+                       help="TeamSpeak ServerQuery username")
+    parser.add_argument("--password", default=os.getenv("TEAMSPEAK_PASSWORD", ""),
+                       help="TeamSpeak ServerQuery password")
+    parser.add_argument("--server-id", type=int, default=int(os.getenv("TEAMSPEAK_SERVER_ID", "1")),
+                       help="TeamSpeak virtual server ID")
+    return parser.parse_args()
+
 class TeamSpeakConnection:
     """TeamSpeak connection manager."""
     
-    def __init__(self):
+    def __init__(self, host=None, port=None, user=None, password=None, server_id=None):
+        # Use provided arguments or fall back to environment variables
         self.connection: Optional[ts3.query.TS3Connection] = None
-        self.host = os.getenv("TEAMSPEAK_HOST", "localhost")
-        self.port = int(os.getenv("TEAMSPEAK_PORT", "10011"))
-        self.user = os.getenv("TEAMSPEAK_USER", "serveradmin")
-        self.password = os.getenv("TEAMSPEAK_PASSWORD", "")
-        self.server_id = int(os.getenv("TEAMSPEAK_SERVER_ID", "1"))
+        self.host = host or os.getenv("TEAMSPEAK_HOST", "localhost")
+        self.port = port or int(os.getenv("TEAMSPEAK_PORT", "10011"))
+        self.user = user or os.getenv("TEAMSPEAK_USER", "serveradmin")
+        self.password = password or os.getenv("TEAMSPEAK_PASSWORD", "")
+        self.server_id = server_id or int(os.getenv("TEAMSPEAK_SERVER_ID", "1"))
         
     async def connect(self) -> bool:
         """Connect to TeamSpeak server."""
@@ -65,8 +82,8 @@ class TeamSpeakConnection:
         """Check if connection is active."""
         return self.connection is not None
 
-# Global connection instance
-ts_connection = TeamSpeakConnection()
+# Global connection instance - will be initialized in main()
+ts_connection = None
 
 # MCP Tools definition
 TOOLS = [
@@ -588,8 +605,22 @@ class TeamSpeakMCPServer:
                 isError=True
             )
 
-async def main():
-    """Main MCP server function."""
+async def run_server():
+    """Run the MCP server."""
+    global ts_connection
+    
+    # Parse command line arguments
+    args = parse_args()
+    
+    # Initialize connection with CLI arguments
+    ts_connection = TeamSpeakConnection(
+        host=args.host,
+        port=args.port,
+        user=args.user,
+        password=args.password,
+        server_id=args.server_id
+    )
+    
     server_instance = TeamSpeakMCPServer()
     
     # Configure handlers
@@ -597,6 +628,9 @@ async def main():
     server_instance.server.call_tool = server_instance.handle_call_tool
     
     logger.info("🚀 Starting TeamSpeak MCP server...")
+    logger.info(f"Host: {ts_connection.host}:{ts_connection.port}")
+    logger.info(f"User: {ts_connection.user}")
+    logger.info(f"Server ID: {ts_connection.server_id}")
     
     try:
         async with stdio_server() as (read_stream, write_stream):
@@ -613,7 +647,12 @@ async def main():
                 ),
             )
     finally:
-        await ts_connection.disconnect()
+        if ts_connection:
+            await ts_connection.disconnect()
+
+def main():
+    """Entry point for setuptools."""
+    asyncio.run(run_server())
 
 if __name__ == "__main__":
-    asyncio.run(main()) 
+    main() 

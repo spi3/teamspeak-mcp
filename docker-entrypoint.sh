@@ -102,6 +102,13 @@ case "${1:-server}" in
         exec python -m teamspeak_mcp.server
         ;;
         
+    "server-cli")
+        log "🚀 Starting TeamSpeak MCP server with CLI args..."
+        # Pass all arguments except the first one to the Python server
+        shift
+        exec python -m teamspeak_mcp.server "$@"
+        ;;
+        
     "test")
         log "🧪 Test mode - Checking configuration..."
         show_config
@@ -134,16 +141,24 @@ case "${1:-server}" in
     "help"|"--help"|"-h")
         echo "TeamSpeak MCP Docker - Available modes:"
         echo ""
-        echo "  server (default)  - Launch MCP server"
+        echo "  server (default)  - Launch MCP server with env vars"
+        echo "  server-cli        - Launch MCP server with CLI args"
         echo "  test             - Connection tests"
         echo "  debug            - Full environment analysis"
         echo "  shell|bash       - Interactive shell"
         echo "  config           - Display configuration"
         echo "  help             - This help"
         echo ""
-        echo "Required environment variables:"
+        echo "Required environment variables (server mode):"
         echo "  TEAMSPEAK_HOST     - TeamSpeak server address"
         echo "  TEAMSPEAK_PASSWORD - ServerQuery password"
+        echo ""
+        echo "CLI arguments (server-cli mode):"
+        echo "  --host HOST        - TeamSpeak server address"
+        echo "  --port PORT        - ServerQuery port (default: 10011)"
+        echo "  --user USER        - ServerQuery user (default: serveradmin)"
+        echo "  --password PASS    - ServerQuery password"
+        echo "  --server-id ID     - Virtual server ID (default: 1)"
         echo ""
         echo "Optional variables:"
         echo "  TEAMSPEAK_PORT     - ServerQuery port (default: 10011)"
