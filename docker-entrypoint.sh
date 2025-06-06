@@ -286,7 +286,7 @@ except Exception as e:
         echo "  SKIP_CONNECTION_TEST - Skip connection tests (default: false)" >&2
         echo "" >&2
         echo "🧪 Integration Test Mode:" >&2
-        echo "  integration-test     - Test all 18 MCP tools with real TS3 server" >&2
+        echo "  integration-test     - Test all 19 MCP tools with real TS3 server" >&2
         echo "  Results saved in: /app/test_results/integration_results.json" >&2
         ;;
         
