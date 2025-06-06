@@ -51,21 +51,24 @@ uvx teamspeak-mcp --host your-server.com --user your-user --password your-passwo
 - ✅ **Easy scaling** - Works with orchestration
 - ✅ **Cross-platform** - Works anywhere Docker runs
 
+> **💡 Note**: We use `-e` flags in args instead of the `"env": {}` field because Claude Desktop's environment variable handling can be unreliable. The args method ensures consistent variable passing.
+
 ```bash
 # Installation
 docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
 
-# Claude Desktop config (env vars)
+# Claude Desktop config (env vars in args)
 {
   "mcpServers": {
     "teamspeak": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/marlburrow/teamspeak-mcp:latest"],
-      "env": {
-        "TEAMSPEAK_HOST": "your-server.com",
-        "TEAMSPEAK_USER": "your-user",
-        "TEAMSPEAK_PASSWORD": "your-password"
-      }
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "TEAMSPEAK_HOST=your-server.com",
+        "-e", "TEAMSPEAK_USER=your-user", 
+        "-e", "TEAMSPEAK_PASSWORD=your-password",
+        "ghcr.io/marlburrow/teamspeak-mcp:latest"
+      ]
     }
   }
 }
@@ -109,12 +112,13 @@ cd teamspeak-mcp && docker build -t teamspeak-mcp .
   "mcpServers": {
     "teamspeak": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "teamspeak-mcp:latest"],
-      "env": {
-        "TEAMSPEAK_HOST": "your-server.com",
-        "TEAMSPEAK_USER": "your-user", 
-        "TEAMSPEAK_PASSWORD": "your-password"
-      }
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "TEAMSPEAK_HOST=your-server.com",
+        "-e", "TEAMSPEAK_USER=your-user",
+        "-e", "TEAMSPEAK_PASSWORD=your-password",
+        "teamspeak-mcp"
+      ]
     }
   }
 }
@@ -142,7 +146,7 @@ uvx install teamspeak-mcp
 **Most Reliable (Docker):**
 ```bash
 docker pull ghcr.io/marlburrow/teamspeak-mcp:latest
-# Add to Claude Desktop config with env vars
+# Add to Claude Desktop config with env vars in args
 ```
 
 **Most Flexible (Local):**
@@ -170,7 +174,11 @@ python test_mcp.py
 docker build -t teamspeak-mcp .
 
 # Test with Docker
-docker run --rm -it --env-file .env teamspeak-mcp test
+docker run --rm -it \
+  -e TEAMSPEAK_HOST=your-server.com \
+  -e TEAMSPEAK_USER=your-user \
+  -e TEAMSPEAK_PASSWORD=your-password \
+  teamspeak-mcp test
 ```
 
 ## 🔑 TeamSpeak Server Setup
@@ -248,12 +256,13 @@ docker run --rm -it \
   "mcpServers": {
     "teamspeak": {
       "command": "docker",
-      "args": ["run", "--rm", "-i", "ghcr.io/marlburrow/teamspeak-mcp:latest"],
-      "env": {
-        "TEAMSPEAK_HOST": "your-server.example.com",
-        "TEAMSPEAK_USER": "mcp_user",
-        "TEAMSPEAK_PASSWORD": "secure_password123"
-      }
+      "args": [
+        "run", "--rm", "-i",
+        "-e", "TEAMSPEAK_HOST=your-server.example.com",
+        "-e", "TEAMSPEAK_USER=mcp_user",
+        "-e", "TEAMSPEAK_PASSWORD=secure_password123",
+        "ghcr.io/marlburrow/teamspeak-mcp:latest"
+      ]
     }
   }
 }
@@ -384,10 +393,10 @@ This project uses automated GitHub Actions for building and publishing Docker im
    - Ensure you're using Python 3.10-3.12
    - The MCP library requires Python 3.10+
 
-5. **"Docker env file not found"**
-   - Make sure the path to your `.env` file is correct in Claude Desktop config
-   - Or use environment variables directly in the Docker args
-   - Check that file permissions allow Docker to read the file
+5. **"Docker environment variables not working"**
+   - Use `-e` flags in args instead of the `"env": {}` field for better compatibility
+   - Ensure environment variables are passed correctly in Docker args
+   - Check that all required variables are provided: TEAMSPEAK_HOST, TEAMSPEAK_USER, TEAMSPEAK_PASSWORD
 
 ### Logs
 ```bash
