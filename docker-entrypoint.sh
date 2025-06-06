@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Log function
 log() {
-    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1" >&2
 }
 
 error() {
@@ -21,29 +21,29 @@ error() {
 }
 
 warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 # Debug function to show all environment variables
 debug_env() {
     log "🔍 Environment Variables Debug:"
-    echo "All TEAMSPEAK_* variables:"
+    echo "All TEAMSPEAK_* variables:" >&2
     env | grep "^TEAMSPEAK_" | while read -r line; do
         key=$(echo "$line" | cut -d'=' -f1)
         if [[ "$key" == "TEAMSPEAK_PASSWORD" ]]; then
-            echo "  $key=[REDACTED]"
+            echo "  $key=[REDACTED]" >&2
         else
-            echo "  $line"
+            echo "  $line" >&2
         fi
     done
-    echo ""
-    echo "All environment variables count: $(env | wc -l)"
-    echo "Docker-related variables:"
-    env | grep -E "^(PATH|HOME|USER|HOSTNAME)" | head -5
+    echo "" >&2
+    echo "All environment variables count: $(env | wc -l)" >&2
+    echo "Docker-related variables:" >&2
+    env | grep -E "^(PATH|HOME|USER|HOSTNAME)" | head -5 >&2
 }
 
 # Check required environment variables
@@ -78,11 +78,11 @@ test_connection() {
 # Display configuration (without secrets)
 show_config() {
     log "TeamSpeak MCP Configuration:"
-    echo "  Host: $TEAMSPEAK_HOST"
-    echo "  Port: ${TEAMSPEAK_PORT:-10011}"
-    echo "  User: ${TEAMSPEAK_USER:-serveradmin}"
-    echo "  Server ID: ${TEAMSPEAK_SERVER_ID:-1}"
-    echo "  Password: [REDACTED]"
+    echo "  Host: $TEAMSPEAK_HOST" >&2
+    echo "  Port: ${TEAMSPEAK_PORT:-10011}" >&2
+    echo "  User: ${TEAMSPEAK_USER:-serveradmin}" >&2
+    echo "  Server ID: ${TEAMSPEAK_SERVER_ID:-1}" >&2
+    echo "  Password: [REDACTED]" >&2
 }
 
 # Main mode handler
@@ -121,11 +121,11 @@ case "${1:-server}" in
         log "🔍 Debug mode - Full environment analysis..."
         debug_env
         show_config
-        echo ""
-        echo "Current working directory: $(pwd)"
-        echo "Python version: $(python --version)"
-        echo "Available Python packages:"
-        pip list | grep -E "(mcp|ts3|pydantic)" || echo "  No relevant packages found"
+        echo "" >&2
+        echo "Current working directory: $(pwd)" >&2
+        echo "Python version: $(python --version)" >&2
+        echo "Available Python packages:" >&2
+        pip list | grep -E "(mcp|ts3|pydantic)" >&2 || echo "  No relevant packages found" >&2
         ;;
         
     "shell"|"bash")
@@ -139,32 +139,32 @@ case "${1:-server}" in
         ;;
         
     "help"|"--help"|"-h")
-        echo "TeamSpeak MCP Docker - Available modes:"
-        echo ""
-        echo "  server (default)  - Launch MCP server with env vars"
-        echo "  server-cli        - Launch MCP server with CLI args"
-        echo "  test             - Connection tests"
-        echo "  debug            - Full environment analysis"
-        echo "  shell|bash       - Interactive shell"
-        echo "  config           - Display configuration"
-        echo "  help             - This help"
-        echo ""
-        echo "Required environment variables (server mode):"
-        echo "  TEAMSPEAK_HOST     - TeamSpeak server address"
-        echo "  TEAMSPEAK_PASSWORD - ServerQuery password"
-        echo ""
-        echo "CLI arguments (server-cli mode):"
-        echo "  --host HOST        - TeamSpeak server address"
-        echo "  --port PORT        - ServerQuery port (default: 10011)"
-        echo "  --user USER        - ServerQuery user (default: serveradmin)"
-        echo "  --password PASS    - ServerQuery password"
-        echo "  --server-id ID     - Virtual server ID (default: 1)"
-        echo ""
-        echo "Optional variables:"
-        echo "  TEAMSPEAK_PORT     - ServerQuery port (default: 10011)"
-        echo "  TEAMSPEAK_USER     - ServerQuery user (default: serveradmin)"
-        echo "  TEAMSPEAK_SERVER_ID - Virtual server ID (default: 1)"
-        echo "  SKIP_CONNECTION_TEST - Skip connection tests (default: false)"
+        echo "TeamSpeak MCP Docker - Available modes:" >&2
+        echo "" >&2
+        echo "  server (default)  - Launch MCP server with env vars" >&2
+        echo "  server-cli        - Launch MCP server with CLI args" >&2
+        echo "  test             - Connection tests" >&2
+        echo "  debug            - Full environment analysis" >&2
+        echo "  shell|bash       - Interactive shell" >&2
+        echo "  config           - Display configuration" >&2
+        echo "  help             - This help" >&2
+        echo "" >&2
+        echo "Required environment variables (server mode):" >&2
+        echo "  TEAMSPEAK_HOST     - TeamSpeak server address" >&2
+        echo "  TEAMSPEAK_PASSWORD - ServerQuery password" >&2
+        echo "" >&2
+        echo "CLI arguments (server-cli mode):" >&2
+        echo "  --host HOST        - TeamSpeak server address" >&2
+        echo "  --port PORT        - ServerQuery port (default: 10011)" >&2
+        echo "  --user USER        - ServerQuery user (default: serveradmin)" >&2
+        echo "  --password PASS    - ServerQuery password" >&2
+        echo "  --server-id ID     - Virtual server ID (default: 1)" >&2
+        echo "" >&2
+        echo "Optional variables:" >&2
+        echo "  TEAMSPEAK_PORT     - ServerQuery port (default: 10011)" >&2
+        echo "  TEAMSPEAK_USER     - ServerQuery user (default: serveradmin)" >&2
+        echo "  TEAMSPEAK_SERVER_ID - Virtual server ID (default: 1)" >&2
+        echo "  SKIP_CONNECTION_TEST - Skip connection tests (default: false)" >&2
         ;;
         
     *)
