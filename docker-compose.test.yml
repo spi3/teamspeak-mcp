@@ -8,6 +8,15 @@ services:
     platform: ${TEAMSPEAK_PLATFORM:-linux/amd64}
     container_name: ts3-test-server
     restart: unless-stopped
+    # Resource limits for CI stability
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
     environment:
       TS3SERVER_DB_PLUGIN: ts3db_sqlite3
       TS3SERVER_DB_SQLCREATEPATH: create_sqlite
@@ -15,7 +24,7 @@ services:
       TS3SERVER_DB_USER: ""
       TS3SERVER_DB_PASSWORD: ""
       TS3SERVER_DB_NAME: ""
-      TS3SERVER_DB_WAITUNTILREADY: 90
+      TS3SERVER_DB_WAITUNTILREADY: 120
       TS3SERVER_LICENSE: accept
       # Configuration pour les tests - démarrage rapide
       TS3SERVER_QUERY_PROTOCOLS: raw
@@ -23,8 +32,12 @@ services:
       TS3SERVER_LOGQUERYCOMMANDS: 0
       TS3SERVER_DBLOGKEEPDAYS: 1
       TS3SERVER_LOGAPPEND: 0
-      # Optimisations pour CI
+      # Optimisations pour CI - réduction des ressources
       TS3SERVER_MACHINE_ID: ci-test-server
+      TS3SERVER_DB_CONNECTIONS: 2
+      TS3SERVER_QUERY_BUFFER: 1
+      # Désactiver les fonctionnalités non essentielles en CI
+      TS3SERVER_HINTS: 0
     ports:
       - "9987:9987/udp"   # TeamSpeak port
       - "10011:10011"     # ServerQuery port  
@@ -34,12 +47,13 @@ services:
       - ts3-test-logs:/var/ts3server/logs/
     networks:
       - ts3-test-network
+    # Simplified healthcheck for CI reliability
     healthcheck:
-      test: ["CMD", "sh", "-c", "nc -z localhost 10011 && echo 'ServerQuery OK'"]
-      interval: 20s
-      timeout: 15s
-      retries: 15
-      start_period: 180s
+      test: ["CMD", "sh", "-c", "nc -z localhost 10011 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 120s
 
   # Service de test pour notre MCP
   teamspeak-mcp-test:
