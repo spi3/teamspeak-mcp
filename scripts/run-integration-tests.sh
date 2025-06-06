@@ -3,165 +3,171 @@
 # Script de tests d'intégration TeamSpeak MCP
 set -e
 
-# Couleurs pour les logs
-GREEN='\033[0;32m'
+# Colors for output
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m'
+NC='\033[0m' # No Color
 
-success() {
-    echo -e "${GREEN}✅ $1${NC}"
+# Detect architecture and set appropriate TeamSpeak image
+ARCH=$(uname -m)
+echo "🏗️  Detected architecture: $ARCH"
+
+if [[ "$ARCH" == "arm64" || "$ARCH" == "aarch64" ]]; then
+    echo "🍎 ARM64 detected - Using official TeamSpeak image with emulation"
+    export TEAMSPEAK_IMAGE="teamspeak:latest"
+    export TEAMSPEAK_PLATFORM="linux/amd64"
+    echo "⚠️  Note: Running AMD64 image on ARM64 via emulation (slower but compatible)"
+elif [[ "$ARCH" == "x86_64" || "$ARCH" == "amd64" ]]; then
+    echo "💻 AMD64 detected - Using official TeamSpeak image"
+    export TEAMSPEAK_IMAGE="teamspeak:latest"
+    export TEAMSPEAK_PLATFORM=""
+else
+    echo "❌ Unsupported architecture: $ARCH"
+    exit 1
+fi
+
+echo "📦 Using TeamSpeak image: $TEAMSPEAK_IMAGE"
+
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}[$(date +'%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
 
-error() {
-    echo -e "${RED}❌ $1${NC}"
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
-warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}"
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
-info() {
-    echo -e "${BLUE}ℹ️  $1${NC}"
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-header() {
-    echo -e "\n${BLUE}🚀 $1${NC}"
-    echo "========================================"
-}
-
+# Cleanup function
 cleanup() {
-    header "Cleaning up containers..."
-    docker-compose -f docker-compose.test.yml down --volumes --remove-orphans 2>/dev/null || true
-    docker volume prune -f 2>/dev/null || true
+    print_status "🧹 Cleaning up..."
+    if command -v docker-compose >/dev/null 2>&1; then
+        docker-compose -f docker-compose.test.yml down --volumes --remove-orphans >/dev/null 2>&1 || true
+    else
+        docker compose -f docker-compose.test.yml down --volumes --remove-orphans >/dev/null 2>&1 || true
+    fi
 }
 
-main() {
-    header "TeamSpeak MCP Integration Tests"
-    
-    # Vérifier les prérequis
-    if ! command -v docker &> /dev/null; then
-        error "Docker is not installed"
-        exit 1
-    fi
-    
-    if ! command -v docker-compose &> /dev/null; then
-        error "Docker Compose is not installed"
-        exit 1
-    fi
-    
-    success "Docker and Docker Compose are available"
-    
-    # Créer les dossiers nécessaires
-    mkdir -p tests test_results scripts
-    
-    # Nettoyage initial
-    cleanup
-    
-    # Construire les images
-    header "Building Docker images..."
-    if docker-compose -f docker-compose.test.yml build; then
-        success "Images built successfully"
-    else
-        error "Failed to build images"
-        exit 1
-    fi
-    
-    # Démarrer TeamSpeak 3 Server
-    header "Starting TeamSpeak 3 Server..."
-    docker-compose -f docker-compose.test.yml up -d teamspeak3-server
-    
-    # Attendre que TS3 soit prêt
-    info "Waiting for TeamSpeak server to be ready..."
-    for i in {1..120}; do
-        if docker-compose -f docker-compose.test.yml exec -T teamspeak3-server nc -z localhost 10011 2>/dev/null; then
-            success "TeamSpeak server is ready after ${i}s"
-            break
-        fi
-        if [ $i -eq 120 ]; then
-            error "TeamSpeak server failed to start after 120s"
-            docker-compose -f docker-compose.test.yml logs teamspeak3-server
-            cleanup
-            exit 1
-        fi
-        sleep 1
-    done
-    
-    # Extraire le token admin
-    header "Extracting admin token..."
-    docker-compose -f docker-compose.test.yml up token-extractor
-    
-    if [ -f scripts/admin_token.txt ]; then
-        TOKEN=$(cat scripts/admin_token.txt)
-        if [ ! -z "$TOKEN" ]; then
-            success "Admin token extracted: ${TOKEN:0:10}..."
-            # Mettre à jour la variable d'environnement pour les tests
-            export TEAMSPEAK_PASSWORD="$TOKEN"
-        else
-            warning "Empty admin token, will try without password"
-        fi
-    else
-        warning "No admin token file found, will try without password"
-    fi
-    
-    # Lancer les tests d'intégration
-    header "Running integration tests..."
-    
-    # Exporter les variables pour docker-compose
-    export TEAMSPEAK_HOST=teamspeak3-server
-    export TEAMSPEAK_PORT=10011
-    export TEAMSPEAK_USER=serveradmin
-    export TEAMSPEAK_SERVER_ID=1
-    
-    if docker-compose -f docker-compose.test.yml run --rm teamspeak-mcp-test python tests/test_integration.py; then
-        success "Integration tests completed successfully!"
-        
-        # Afficher les résultats si disponibles
-        if [ -f test_results/integration_results.json ]; then
-            header "Test Results Summary"
-            if command -v jq &> /dev/null; then
-                echo "📊 Detailed results:"
-                cat test_results/integration_results.json | jq '.[] | "\(.tool): \(.status) - \(.message)"' -r
-            else
-                info "Install 'jq' to see detailed test results"
-                info "Results saved in test_results/integration_results.json"
-            fi
-        fi
-        
-        TEST_EXIT_CODE=0
-    else
-        error "Integration tests failed!"
-        
-        # Afficher les logs en cas d'erreur
-        header "Container logs for debugging:"
-        echo "TeamSpeak server logs:"
-        docker-compose -f docker-compose.test.yml logs --tail=50 teamspeak3-server
-        echo -e "\nMCP test logs:"
-        docker-compose -f docker-compose.test.yml logs --tail=50 teamspeak-mcp-test
-        
-        TEST_EXIT_CODE=1
-    fi
-    
-    # Nettoyage final
-    cleanup
-    
-    # Message final
-    if [ $TEST_EXIT_CODE -eq 0 ]; then
-        success "🎉 All integration tests passed!"
-        info "Results are available in test_results/"
-    else
-        error "💥 Some integration tests failed!"
-        info "Check the logs above for details"
-    fi
-    
-    exit $TEST_EXIT_CODE
-}
-
-# Gestion des signaux pour nettoyage
+# Trap cleanup on exit
 trap cleanup EXIT
-trap cleanup INT
-trap cleanup TERM
 
-# Exécution du script principal
-main "$@" 
+# Main script
+print_status "🧪 Starting TeamSpeak MCP Integration Tests"
+print_status "🏗️  Architecture: $ARCH"
+print_status "📦 TeamSpeak Image: $TEAMSPEAK_IMAGE"
+
+# Ensure directories exist
+mkdir -p test_results scripts
+
+# Clean up any existing containers
+cleanup
+
+# Start the integration test
+print_status "🚀 Starting TeamSpeak 3 server..."
+
+# Use the detected Docker Compose command
+if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    COMPOSE_CMD="docker compose"
+fi
+
+# Start TeamSpeak server with platform-specific image
+$COMPOSE_CMD -f docker-compose.test.yml up -d teamspeak3-server
+
+# Wait for server to be ready
+print_status "⏳ Waiting for TeamSpeak server to be ready..."
+timeout=180
+counter=0
+
+while [ $counter -lt $timeout ]; do
+    if $COMPOSE_CMD -f docker-compose.test.yml exec -T teamspeak3-server nc -z localhost 10011 2>/dev/null; then
+        print_success "TeamSpeak server is ready after ${counter}s"
+        break
+    fi
+    
+    if [ $((counter % 30)) -eq 0 ] && [ $counter -gt 0 ]; then
+        print_status "⏳ Still waiting... (${counter}s elapsed)"
+    fi
+    
+    if [ $counter -eq $timeout ]; then
+        print_error "TeamSpeak server failed to start after ${timeout}s"
+        print_status "📋 Server logs:"
+        $COMPOSE_CMD -f docker-compose.test.yml logs teamspeak3-server
+        exit 1
+    fi
+    
+    sleep 1
+    counter=$((counter + 1))
+done
+
+# Extract admin token if needed
+print_status "🔑 Extracting admin token..."
+$COMPOSE_CMD -f docker-compose.test.yml up token-extractor
+
+# Run integration tests
+print_status "🧪 Running integration tests..."
+
+# Set environment variables
+export TEAMSPEAK_HOST=teamspeak3-server
+export TEAMSPEAK_PORT=10011
+export TEAMSPEAK_USER=serveradmin
+export TEAMSPEAK_SERVER_ID=1
+
+if [ -f scripts/admin_token.txt ]; then
+    export TEAMSPEAK_PASSWORD=$(cat scripts/admin_token.txt)
+    print_status "🔑 Using extracted admin token"
+else
+    export TEAMSPEAK_PASSWORD=""
+    print_warning "No admin token found, using empty password"
+fi
+
+# Run the actual integration tests
+$COMPOSE_CMD -f docker-compose.test.yml run --rm \
+    -e TEAMSPEAK_HOST=$TEAMSPEAK_HOST \
+    -e TEAMSPEAK_PORT=$TEAMSPEAK_PORT \
+    -e TEAMSPEAK_USER=$TEAMSPEAK_USER \
+    -e TEAMSPEAK_PASSWORD="$TEAMSPEAK_PASSWORD" \
+    -e TEAMSPEAK_SERVER_ID=$TEAMSPEAK_SERVER_ID \
+    teamspeak-mcp-test integration-test
+
+# Check results
+if [ -f test_results/integration_results.json ]; then
+    print_success "Integration tests completed!"
+    
+    # Display summary if jq is available
+    if command -v jq >/dev/null 2>&1; then
+        successes=$(jq '[.[] | select(.status == "SUCCESS")] | length' test_results/integration_results.json)
+        failures=$(jq '[.[] | select(.status == "FAILURE")] | length' test_results/integration_results.json)
+        total=$(jq 'length' test_results/integration_results.json)
+        
+        print_status "📊 Test Results Summary:"
+        echo "  ✅ Successes: $successes"
+        echo "  ❌ Failures: $failures"
+        echo "  📊 Total: $total"
+        echo "  🎯 Success rate: $(echo "scale=1; $successes * 100 / $total" | bc)%"
+        
+        if [ $failures -gt 0 ]; then
+            echo ""
+            print_warning "Failed tests:"
+            jq -r '.[] | select(.status == "FAILURE") | "  • \(.tool): \(.message)"' test_results/integration_results.json
+        fi
+    else
+        print_status "📄 Raw test results:"
+        cat test_results/integration_results.json
+    fi
+else
+    print_error "No test results found!"
+    exit 1
+fi
+
+print_success "Integration tests completed successfully!" 

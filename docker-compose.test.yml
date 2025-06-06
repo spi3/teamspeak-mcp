@@ -1,7 +1,11 @@
 services:
   # TeamSpeak 3 Server pour les tests
   teamspeak3-server:
-    image: teamspeak:latest
+    # Use ARM64 compatible image for local development on Mac M1/M2
+    # and fallback to official image for CI AMD64
+    image: ${TEAMSPEAK_IMAGE:-teamspeak:latest}
+    # Allow platform emulation when needed (ARM64 -> AMD64)
+    platform: ${TEAMSPEAK_PLATFORM:-linux/amd64}
     container_name: ts3-test-server
     restart: unless-stopped
     environment:
@@ -11,7 +15,7 @@ services:
       TS3SERVER_DB_USER: ""
       TS3SERVER_DB_PASSWORD: ""
       TS3SERVER_DB_NAME: ""
-      TS3SERVER_DB_WAITUNTILREADY: 60
+      TS3SERVER_DB_WAITUNTILREADY: 90
       TS3SERVER_LICENSE: accept
       # Configuration pour les tests - démarrage rapide
       TS3SERVER_QUERY_PROTOCOLS: raw
@@ -32,10 +36,10 @@ services:
       - ts3-test-network
     healthcheck:
       test: ["CMD", "sh", "-c", "nc -z localhost 10011 && echo 'ServerQuery OK'"]
-      interval: 15s
-      timeout: 10s
-      retries: 12
-      start_period: 90s
+      interval: 20s
+      timeout: 15s
+      retries: 15
+      start_period: 180s
 
   # Service de test pour notre MCP
   teamspeak-mcp-test:

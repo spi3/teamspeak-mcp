@@ -239,3 +239,70 @@ docker-compose -f docker-compose.test.yml run --rm teamspeak-mcp-test config
 - ✅ **Régression** - Détection automatique des bugs
 
 Cette infrastructure de test représente un **bond qualitatif majeur** pour le projet TeamSpeak MCP ! 🚀 
+
+## 🏗️ Multi-Architecture Support
+
+### Local Development on Different Architectures
+
+Our integration tests support both **ARM64** (Mac M1/M2) and **AMD64** (Intel/CI) architectures:
+
+#### 🍎 **ARM64 (Mac M1/M2)**
+```bash
+# Automatic detection and image selection
+./scripts/run-integration-tests.sh
+
+# Manual override (uses official image with emulation)
+export TEAMSPEAK_IMAGE="teamspeak:latest"
+export TEAMSPEAK_PLATFORM="linux/amd64"
+docker compose -f docker-compose.test.yml up
+```
+
+#### 💻 **AMD64 (Intel/CI)**
+```bash
+# Uses official TeamSpeak image natively
+./scripts/run-integration-tests.sh
+
+# Manual override
+export TEAMSPEAK_IMAGE="teamspeak:latest"
+docker compose -f docker-compose.test.yml up
+```
+
+### Architecture Detection
+
+The test script automatically detects your architecture:
+
+```bash
+# Output examples:
+🏗️ Detected architecture: arm64
+🍎 ARM64 detected - Using official TeamSpeak image with emulation
+📦 Using TeamSpeak image: teamspeak:latest
+⚠️ Note: Running AMD64 image on ARM64 via emulation (slower but compatible)
+```
+
+### Troubleshooting Architecture Issues
+
+**Problem**: `no matching manifest for linux/arm64/v8`
+```bash
+# Solution 1: Use architecture detection script (recommended)
+./scripts/run-integration-tests.sh
+
+# Solution 2: Force official image with emulation
+export TEAMSPEAK_IMAGE="teamspeak:latest"
+export TEAMSPEAK_PLATFORM="linux/amd64"
+docker compose -f docker-compose.test.yml up
+
+# Solution 3: Use platform flag directly
+docker run --platform linux/amd64 teamspeak:latest
+```
+
+**Problem**: `The default license has expired`
+- ✅ **Solution**: Always use `teamspeak:latest` (3.13.7+ with valid license until 2027)
+- ❌ **Avoid**: `qmcgaw/teamspeak3-alpine` (3.13.6 from 2021 with expired license)
+
+### CI vs Local Differences
+
+| Environment | Architecture | Image Used | Platform | Performance | 
+|-------------|-------------|------------|----------|-------------|
+| **GitHub Actions** | AMD64 | `teamspeak:latest` | Native | Fast ⚡ |
+| **Mac M1/M2** | ARM64 | `teamspeak:latest` | Emulated AMD64 | Slower 🐌 but works ✅ |
+| **Intel Mac/Linux** | AMD64 | `teamspeak:latest` | Native | Fast ⚡ |

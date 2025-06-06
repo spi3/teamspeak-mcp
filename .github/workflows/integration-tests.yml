@@ -13,6 +13,8 @@ on:
 env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
+  # Force official TeamSpeak image in CI (AMD64 environment)
+  TEAMSPEAK_IMAGE: "teamspeak:latest"
 
 jobs:
   integration-tests:
@@ -35,6 +37,9 @@ jobs:
       - name: Build test images
         run: |
           echo "🏗️ Building Docker images for integration tests..."
+          
+          echo "📦 Using TeamSpeak image for CI: $TEAMSPEAK_IMAGE"
+          
           docker compose -f docker-compose.test.yml build
           
       - name: Start TeamSpeak 3 Server
