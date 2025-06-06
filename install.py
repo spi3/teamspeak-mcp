@@ -17,23 +17,23 @@ def print_banner():
 ║                    🎮 TeamSpeak MCP Installer                 ║
 ║          Configure your MCP server for Claude                ║
 ╚══════════════════════════════════════════════════════════════╝
-""")
+""", file=sys.stderr)
 
 def install_dependencies():
     """Install Python dependencies."""
-    print("📦 Installing dependencies...")
+    print("📦 Installing dependencies...", file=sys.stderr)
     try:
         subprocess.check_call([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"])
-        print("✅ Dependencies installed successfully")
+        print("✅ Dependencies installed successfully", file=sys.stderr)
         return True
     except subprocess.CalledProcessError as e:
-        print(f"❌ Error installing dependencies: {e}")
+        print(f"❌ Error installing dependencies: {e}", file=sys.stderr)
         return False
 
 def collect_teamspeak_config():
     """Collect TeamSpeak configuration from user."""
-    print("\n🔧 TeamSpeak Configuration")
-    print("Please enter your TeamSpeak server information:\n")
+    print("\n🔧 TeamSpeak Configuration", file=sys.stderr)
+    print("Please enter your TeamSpeak server information:\n", file=sys.stderr)
     
     config = {}
     
@@ -65,7 +65,7 @@ def collect_teamspeak_config():
 
 def create_env_file(config):
     """Create .env file with configuration."""
-    print("\n📄 Creating configuration file...")
+    print("\n📄 Creating configuration file...", file=sys.stderr)
     
     try:
         with open(".env", "w") as f:
@@ -75,10 +75,10 @@ def create_env_file(config):
             for key, value in config.items():
                 f.write(f"{key}={value}\n")
         
-        print("✅ .env file created successfully")
+        print("✅ .env file created successfully", file=sys.stderr)
         return True
     except Exception as e:
-        print(f"❌ Error creating .env file: {e}")
+        print(f"❌ Error creating .env file: {e}", file=sys.stderr)
         return False
 
 def find_claude_config_path():
@@ -94,10 +94,10 @@ def find_claude_config_path():
 
 def update_claude_config(ts_config):
     """Update Claude Desktop configuration."""
-    print("\n🤖 Configuring Claude Desktop...")
+    print("\n🤖 Configuring Claude Desktop...", file=sys.stderr)
     
     claude_config_path = find_claude_config_path()
-    print(f"📍 Claude configuration path: {claude_config_path}")
+    print(f"📍 Claude configuration path: {claude_config_path}", file=sys.stderr)
     
     # Create directory if needed
     claude_config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -127,22 +127,22 @@ def update_claude_config(ts_config):
         with open(claude_config_path, 'w') as f:
             json.dump(claude_config, f, indent=2)
         
-        print("✅ Claude Desktop configuration updated")
+        print("✅ Claude Desktop configuration updated", file=sys.stderr)
         return True
     except Exception as e:
-        print(f"❌ Error updating Claude configuration: {e}")
-        print(f"💡 You can manually copy the content from claude_desktop_config.json")
+        print(f"❌ Error updating Claude configuration: {e}", file=sys.stderr)
+        print(f"💡 You can manually copy the content from claude_desktop_config.json", file=sys.stderr)
         return False
 
 def test_installation():
     """Test the installation."""
-    print("\n🧪 Testing installation...")
+    print("\n🧪 Testing installation...", file=sys.stderr)
     
     try:
         subprocess.check_call([sys.executable, "test_mcp.py"])
         return True
     except subprocess.CalledProcessError:
-        print("❌ Tests failed")
+        print("❌ Tests failed", file=sys.stderr)
         return False
 
 def main():
@@ -151,7 +151,7 @@ def main():
     
     # Check Python version
     if sys.version_info < (3, 10):
-        print("❌ Python 3.10+ is required")
+        print("❌ Python 3.10+ is required", file=sys.stderr)
         sys.exit(1)
     
     # Install dependencies
@@ -172,27 +172,27 @@ def main():
     test_success = test_installation()
     
     # Summary
-    print("\n" + "="*60)
-    print("📋 INSTALLATION SUMMARY")
-    print("="*60)
-    print(f"✅ Dependencies installed")
-    print(f"✅ TeamSpeak configuration created")
-    print(f"{'✅' if claude_updated else '❌'} Claude Desktop configuration")
-    print(f"{'✅' if test_success else '❌'} Installation tests")
+    print("\n" + "="*60, file=sys.stderr)
+    print("📋 INSTALLATION SUMMARY", file=sys.stderr)
+    print("="*60, file=sys.stderr)
+    print(f"✅ Dependencies installed", file=sys.stderr)
+    print(f"✅ TeamSpeak configuration created", file=sys.stderr)
+    print(f"{'✅' if claude_updated else '❌'} Claude Desktop configuration", file=sys.stderr)
+    print(f"{'✅' if test_success else '❌'} Installation tests", file=sys.stderr)
     
     if claude_updated and test_success:
-        print("\n🎉 Installation completed successfully!")
-        print("\n🚀 Next steps:")
-        print("1. Restart Claude Desktop")
-        print("2. Open a new conversation")
-        print("3. Test with: 'Connect to TeamSpeak server'")
-        print("4. Use: 'List connected users'")
+        print("\n🎉 Installation completed successfully!", file=sys.stderr)
+        print("\n🚀 Next steps:", file=sys.stderr)
+        print("1. Restart Claude Desktop", file=sys.stderr)
+        print("2. Open a new conversation", file=sys.stderr)
+        print("3. Test with: 'Connect to TeamSpeak server'", file=sys.stderr)
+        print("4. Use: 'List connected users'", file=sys.stderr)
     else:
-        print("\n⚠️  Installation partially successful")
+        print("\n⚠️  Installation partially successful", file=sys.stderr)
         if not claude_updated:
-            print("💡 Manually configure Claude Desktop with claude_desktop_config.json")
+            print("💡 Manually configure Claude Desktop with claude_desktop_config.json", file=sys.stderr)
         if not test_success:
-            print("💡 Check your TeamSpeak configuration in .env")
+            print("💡 Check your TeamSpeak configuration in .env", file=sys.stderr)
 
 if __name__ == "__main__":
     main() 

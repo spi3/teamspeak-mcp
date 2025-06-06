@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import logging
 import os
+import sys
 from typing import Any, Dict, List, Optional, Sequence
 
 import ts3
@@ -22,8 +23,8 @@ from mcp.types import (
 )
 from pydantic import BaseModel
 
-# Logging configuration
-logging.basicConfig(level=logging.INFO)
+# Logging configuration - ensure all logs go to stderr for MCP protocol compliance
+logging.basicConfig(level=logging.INFO, stream=sys.stderr)
 logger = logging.getLogger(__name__)
 
 def parse_args():

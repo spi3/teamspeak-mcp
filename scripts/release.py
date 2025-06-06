@@ -39,88 +39,92 @@ def bump_version(version, bump_type):
 def update_version_in_file(file_path, old_version, new_version):
     """Update version in a file"""
     content = Path(file_path).read_text()
-    updated = content.replace(f'version = "{old_version}"', f'version = "{new_version}"')
+    if file_path.endswith("__init__.py"):
+        updated = content.replace(f'__version__ = "{old_version}"', f'__version__ = "{new_version}"')
+    else:
+        updated = content.replace(f'version = "{old_version}"', f'version = "{new_version}"')
     Path(file_path).write_text(updated)
 
-def run_command(cmd):
-    """Run shell command and return result"""
+def run_command(cmd, check=True):
+    """Run a shell command."""
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"❌ Command failed: {cmd}")
-        print(f"Error: {result.stderr}")
+    if check and result.returncode != 0:
+        print(f"❌ Command failed: {cmd}", file=sys.stderr)
+        print(f"Error: {result.stderr}", file=sys.stderr)
         sys.exit(1)
-    return result.stdout.strip()
+    return result
+
+def show_usage():
+    """Show usage information."""
+    print("Usage: python scripts/release.py [patch|minor|major]", file=sys.stderr)
+    print("Examples:", file=sys.stderr)
+    print("  python scripts/release.py patch   # 1.0.3 -> 1.0.4", file=sys.stderr)
+    print("  python scripts/release.py minor   # 1.0.3 -> 1.1.0", file=sys.stderr)
+    print("  python scripts/release.py major   # 1.0.3 -> 2.0.0", file=sys.stderr)
 
 def main():
-    if len(sys.argv) != 2 or sys.argv[1] not in ["patch", "minor", "major"]:
-        print("Usage: python scripts/release.py [patch|minor|major]")
-        print("Examples:")
-        print("  python scripts/release.py patch   # 1.0.3 -> 1.0.4")
-        print("  python scripts/release.py minor   # 1.0.3 -> 1.1.0")
-        print("  python scripts/release.py major   # 1.0.3 -> 2.0.0")
+    """Main release function."""
+    if len(sys.argv) != 2 or sys.argv[1] not in ['patch', 'minor', 'major']:
+        show_usage()
         sys.exit(1)
     
     bump_type = sys.argv[1]
     
     # Check git status
-    status = run_command("git status --porcelain")
-    if status:
-        print("❌ Git working directory is not clean. Commit your changes first.")
+    result = run_command("git status --porcelain", check=False)
+    if result.stdout.strip():
+        print("❌ Git working directory is not clean. Commit your changes first.", file=sys.stderr)
         sys.exit(1)
     
-    # Get current version and bump it
+    # Get current version and calculate new version
     current_version = get_current_version()
     new_version = bump_version(current_version, bump_type)
+    tag_name = f"v{new_version}"
     
-    print(f"🚀 Releasing TeamSpeak MCP")
-    print(f"📋 Current version: {current_version}")
-    print(f"📋 New version: {new_version}")
-    print(f"📋 Bump type: {bump_type}")
+    print(f"🚀 Releasing TeamSpeak MCP", file=sys.stderr)
+    print(f"📋 Current version: {current_version}", file=sys.stderr)
+    print(f"📋 New version: {new_version}", file=sys.stderr)
+    print(f"📋 Bump type: {bump_type}", file=sys.stderr)
     
     # Confirm
-    response = input("\n❓ Continue with release? (y/N): ")
-    if response.lower() != 'y':
-        print("❌ Release cancelled")
-        sys.exit(0)
+    response = input("Continue? (y/N): ").strip().lower()
+    if response != 'y':
+        print("❌ Release cancelled", file=sys.stderr)
+        sys.exit(1)
     
     # Update version in pyproject.toml
-    print("📝 Updating version in pyproject.toml...")
+    print("📝 Updating version in pyproject.toml...", file=sys.stderr)
     update_version_in_file("pyproject.toml", current_version, new_version)
     
-    # Update version in __init__.py if it exists
-    init_file = Path("teamspeak_mcp/__init__.py")
-    if init_file.exists():
-        print("📝 Updating version in __init__.py...")
-        content = init_file.read_text()
-        updated = content.replace(f'__version__ = "{current_version}"', f'__version__ = "{new_version}"')
-        init_file.write_text(updated)
+    # Update version in __init__.py
+    print("📝 Updating version in __init__.py...", file=sys.stderr)
+    update_version_in_file("teamspeak_mcp/__init__.py", current_version, new_version)
     
     # Commit changes
-    print("📝 Committing version bump...")
-    run_command("git add -A")
-    run_command(f'git commit -m "Bump version to {new_version}"')
+    print("📝 Committing version bump...", file=sys.stderr)
+    run_command(f'git add pyproject.toml teamspeak_mcp/__init__.py')
+    run_command(f'git commit -m "chore: bump version to {new_version}"')
     
     # Create and push tag
-    print("🏷️ Creating and pushing tag...")
-    tag_name = f"v{new_version}"
-    run_command(f"git tag {tag_name}")
-    run_command("git push origin main")
-    run_command(f"git push origin {tag_name}")
+    print("🏷️ Creating and pushing tag...", file=sys.stderr)
+    run_command(f'git tag {tag_name}')
+    run_command('git push origin main')
+    run_command(f'git push origin {tag_name}')
     
-    print(f"")
-    print(f"🎉 Release initiated!")
-    print(f"🔗 Tag: {tag_name}")
-    print(f"🤖 GitHub Actions will now:")
-    print(f"   1. Build the package")
-    print(f"   2. Test on TestPyPI")  
-    print(f"   3. Publish to PyPI")
-    print(f"   4. Build Docker images")
-    print(f"   5. Create GitHub release")
-    print(f"")
-    print(f"🔍 Monitor progress:")
-    print(f"   - Actions: https://github.com/MarlBurroW/teamspeak-mcp/actions")
-    print(f"   - PyPI: https://pypi.org/project/teamspeak-mcp/{new_version}/")
-    print(f"   - Docker: ghcr.io/marlburrow/teamspeak-mcp:{tag_name}")
+    print(f"", file=sys.stderr)
+    print(f"🎉 Release initiated!", file=sys.stderr)
+    print(f"🔗 Tag: {tag_name}", file=sys.stderr)
+    print(f"🤖 GitHub Actions will now:", file=sys.stderr)
+    print(f"   1. Build the package", file=sys.stderr)
+    print(f"   2. Test on TestPyPI", file=sys.stderr)
+    print(f"   3. Publish to PyPI", file=sys.stderr)
+    print(f"   4. Build Docker images", file=sys.stderr)
+    print(f"   5. Create GitHub release", file=sys.stderr)
+    print(f"", file=sys.stderr)
+    print(f"🔍 Monitor progress:", file=sys.stderr)
+    print(f"   - Actions: https://github.com/MarlBurroW/teamspeak-mcp/actions", file=sys.stderr)
+    print(f"   - PyPI: https://pypi.org/project/teamspeak-mcp/{new_version}/", file=sys.stderr)
+    print(f"   - Docker: ghcr.io/marlburrow/teamspeak-mcp:{tag_name}", file=sys.stderr)
 
 if __name__ == "__main__":
     main() 
