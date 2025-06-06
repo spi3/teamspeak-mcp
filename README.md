@@ -12,10 +12,13 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 
 - 🎯 Connect to TeamSpeak servers
 - 💬 Send messages to channels and private messages
-- 📋 List connected users
-- 🔧 Channel management (create, delete, move users)
+- 📋 List connected users and detailed client information
+- 🔧 **Advanced channel management** (create, delete, update properties, permissions)
+- 🔇 **AFK/Silent channel setup** with talk power presets
 - 🎵 Voice control (mute, unmute, kick, ban)
-- 📊 Server statistics
+- 🛡️ **Fine-grained permission management** per channel
+- 📊 Comprehensive server and channel diagnostics
+- ⚙️ **16 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
 
@@ -274,6 +277,7 @@ docker run --rm -it \
 
 Once configured, you can use these commands with Claude:
 
+### **Basic Commands**
 - *"Connect to TeamSpeak server"*
 - *"Send message 'Hello everyone!' to general channel"*
 - *"List connected users"*
@@ -281,8 +285,18 @@ Once configured, you can use these commands with Claude:
 - *"Move user John to private channel"*
 - *"Show me server info"*
 
-## 🛠️ Available Tools
+### **🆕 Advanced Commands**
+- *"Make channel 5 silent so nobody can talk"* → Uses `set_channel_talk_power` with preset "silent"
+- *"Set up a moderated welcome channel"* → Uses `set_channel_talk_power` with preset "moderated"
+- *"Update channel 3 to set max clients to 10 and add password 'secret'"* → Uses `update_channel`
+- *"Show me detailed information about channel 7"* → Uses `channel_info`
+- *"Get comprehensive details about client 12"* → Uses `client_info_detailed`
+- *"List all permissions for channel 4"* → Uses `manage_channel_permissions` with action "list"
+- *"Add talk power permission to channel 6"* → Uses `manage_channel_permissions` with action "add"
 
+## 🛠️ Available Tools (16 total)
+
+### **Core Tools**
 - `connect_to_server` : Connect to TeamSpeak server
 - `send_channel_message` : Send message to a channel
 - `send_private_message` : Send private message
@@ -294,6 +308,13 @@ Once configured, you can use these commands with Claude:
 - `kick_client` : Kick client
 - `ban_client` : Ban client
 - `server_info` : Get server information
+
+### **🆕 Advanced Management Tools**
+- `update_channel` : Update channel properties (name, description, password, talk power, limits, etc.)
+- `set_channel_talk_power` : Quick setup for AFK/silent/moderated channels with presets
+- `channel_info` : Get detailed channel information (permissions, codec, type, etc.)
+- `manage_channel_permissions` : Fine-grained permission control (add/remove/list)
+- `client_info_detailed` : Comprehensive client details (platform, version, status, etc.)
 
 ## 🔧 Development
 
