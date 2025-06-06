@@ -9,6 +9,7 @@ import json
 import os
 import sys
 import time
+import socket
 from typing import Dict, List, Any
 
 # Add parent directory to path for imports
@@ -48,21 +49,14 @@ class IntegrationTester:
         print(f"📡 Connecting to TS3: {self.connection.host}:{self.connection.port}")
         print(f"👤 User: {self.connection.user}")
         
-    async def wait_for_ts3_server(self, max_wait=60):
+    async def wait_for_ts3_server(self, max_wait=120):
         """Attendre que le serveur TeamSpeak soit prêt."""
         print("⏳ Waiting for TeamSpeak server to be ready...")
         
         for i in range(max_wait):
             try:
                 # Tenter une connexion basique
-                import socket
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1)
-                result = sock.connect_ex(("teamspeak3-server", 10011))
-                sock.close()
-                
-                if result == 0:
-                    print(f"✅ TeamSpeak server is ready after {i}s")
+                if wait_for_server(self.connection.host, self.connection.port):
                     await asyncio.sleep(5)  # Attendre un peu plus pour la stabilité
                     return
                     
@@ -71,7 +65,7 @@ class IntegrationTester:
                 
             await asyncio.sleep(1)
         
-        raise Exception("TeamSpeak server not ready after 60s")
+        raise Exception("TeamSpeak server not ready after 120s")
     
     async def get_admin_token(self):
         """Récupérer le token admin depuis les logs TS3."""
@@ -403,6 +397,33 @@ class IntegrationTester:
         else:
             print("\n🎉 All tests passed!")
             sys.exit(0)
+
+def wait_for_server(host: str, port: int, timeout: int = 120) -> bool:
+    """
+    Attendre que le serveur TeamSpeak soit prêt
+    """
+    print(f"⏳ Waiting for TeamSpeak server at {host}:{port}...")
+    
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(5)
+                result = sock.connect_ex((host, port))
+                if result == 0:
+                    print(f"✅ Server is ready after {int(time.time() - start_time)}s")
+                    return True
+        except Exception as e:
+            print(f"⚠️  Connection attempt failed: {e}")
+        
+        elapsed = int(time.time() - start_time)
+        if elapsed % 15 == 0:  # Log every 15 seconds
+            print(f"⏳ Still waiting... ({elapsed}s elapsed)")
+        
+        time.sleep(1)
+    
+    print(f"❌ TeamSpeak server not ready after {timeout} seconds")
+    return False
 
 async def main():
     """Fonction principale des tests."""

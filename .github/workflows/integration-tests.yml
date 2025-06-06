@@ -42,10 +42,17 @@ jobs:
           echo "🚀 Starting TeamSpeak 3 server..."
           docker compose -f docker-compose.test.yml up -d teamspeak3-server
           
+          echo "📋 Container status after start:"
+          docker compose -f docker-compose.test.yml ps -a
+          
+          echo "📋 Initial server logs:"
+          sleep 10
+          docker compose -f docker-compose.test.yml logs --tail=20 teamspeak3-server
+
       - name: Wait for TeamSpeak server
         run: |
           echo "⏳ Waiting for TeamSpeak server to be ready..."
-          timeout=120
+          timeout=180
           counter=0
           
           while [ $counter -lt $timeout ]; do
@@ -54,16 +61,54 @@ jobs:
               break
             fi
             
+            # Log progress every 30 seconds
+            if [ $((counter % 30)) -eq 0 ] && [ $counter -gt 0 ]; then
+              echo "⏳ Still waiting... (${counter}s elapsed)"
+              echo "📋 Recent server logs:"
+              docker compose -f docker-compose.test.yml logs --tail=10 teamspeak3-server
+            fi
+            
             if [ $counter -eq $timeout ]; then
               echo "❌ TeamSpeak server failed to start after ${timeout}s"
-              echo "📋 Server logs:"
+              echo "📋 Full server logs:"
               docker compose -f docker-compose.test.yml logs teamspeak3-server
+              echo "📋 Container status:"
+              docker compose -f docker-compose.test.yml ps -a
               exit 1
             fi
             
             sleep 1
             counter=$((counter + 1))
           done
+
+      - name: Test TeamSpeak connection
+        run: |
+          echo "🔍 Testing direct connection to TeamSpeak server..."
+          
+          # Test basic connection
+          echo "Testing raw socket connection..."
+          if timeout 10 bash -c "</dev/tcp/localhost/10011"; then
+            echo "✅ Port 10011 is open"
+          else
+            echo "❌ Port 10011 is not accessible"
+            echo "📋 Network status:"
+            docker network ls
+            echo "📋 Container ports:"
+            docker compose -f docker-compose.test.yml port teamspeak3-server 10011
+          fi
+          
+          # Test ServerQuery connection
+          echo "Testing ServerQuery protocol..."
+          response=$(echo -e "version\nquit" | nc -w 5 localhost 10011 || echo "FAILED")
+          if echo "$response" | grep -q "version="; then
+            echo "✅ ServerQuery is responding correctly"
+            echo "Response: $response"
+          else
+            echo "❌ ServerQuery test failed"
+            echo "Response: $response"
+            echo "📋 Recent logs:"
+            docker compose -f docker-compose.test.yml logs --tail=30 teamspeak3-server
+          fi
 
       - name: Extract admin token
         run: |
