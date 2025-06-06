@@ -369,13 +369,54 @@ docker run --rm -it teamspeak-mcp
 - 🌐 Configure firewall to restrict ServerQuery port access
 - 🔄 Change ServerQuery passwords regularly
 
+## 🚀 **Automatized Release Workflow (For Maintainers)**
+
+This project uses **fully automated releases** via GitHub Actions. No manual PyPI uploads needed!
+
+### **How it works:**
+
+1. **One Command Release:**
+   ```bash
+   # Patch release (1.0.3 -> 1.0.4)
+   make release-patch
+   
+   # Minor release (1.0.3 -> 1.1.0) 
+   make release-minor
+   
+   # Major release (1.0.3 -> 2.0.0)
+   make release-major
+   ```
+
+2. **Automatic Process:**
+   - ✅ Bumps version in `pyproject.toml`
+   - ✅ Creates git commit and tag
+   - ✅ Pushes to GitHub
+   - ✅ GitHub Actions triggers automatically:
+     - 🔨 Builds Python package
+     - 🧪 Tests on TestPyPI first
+     - 📦 Publishes to PyPI
+     - 🐳 Builds and publishes Docker images
+     - 📝 Creates GitHub release with changelog
+
+3. **Setup (One-time):**
+   ```bash
+   # Show setup instructions
+   make setup-pypi
+   ```
+
+### **Result:**
+- **PyPI**: `uvx install teamspeak-mcp` gets the new version
+- **Docker**: `ghcr.io/marlburrow/teamspeak-mcp:v1.0.4` available
+- **GitHub**: Automatic release with changelog
+- **No manual work needed!** 🎉
+
 ## 📦 Release Process
 
 This project uses automated GitHub Actions for building and publishing Docker images:
 
-1. **Tag a release**: `git tag v1.0.0 && git push origin v1.0.0`
+1. **Tag a release**: `make release-patch` (or `release-minor`/`release-major`)
 2. **Automatic build**: GitHub Actions builds and pushes multi-arch images
-3. **Available images**: Images are published to `ghcr.io/marlburrow/teamspeak-mcp`
+3. **Available everywhere**: PyPI, GitHub Container Registry, and GitHub Releases
 
 ## 🆘 Troubleshooting
 

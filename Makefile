@@ -1,26 +1,46 @@
 # Makefile for TeamSpeak MCP
-.PHONY: help build run test stop clean logs shell
+.PHONY: help build run test stop clean logs shell docker-build docker-test docker-run docker-clean release-patch release-minor release-major setup-pypi
 
 # Variables
 IMAGE_NAME = teamspeak-mcp
 CONTAINER_NAME = teamspeak-mcp
 GHCR_IMAGE = ghcr.io/marlburrow/teamspeak-mcp
-VERSION = 1.0.0
+VERSION = $(shell grep '^version =' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
 
-# Help
+# === HELP ===
 help: ## Show this help
-	@echo "TeamSpeak MCP - Available commands:"
+	@echo "🚀 TeamSpeak MCP - Available commands:"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@echo ""
+	@echo "🎯 Quick workflows:"
+	@echo "  make release-patch    # $(VERSION) -> next patch (bug fixes)"
+	@echo "  make release-minor    # $(VERSION) -> next minor (new features)"
+	@echo "  make release-major    # $(VERSION) -> next major (breaking changes)"
 
-# Build
+# === DEVELOPMENT ===
+install-dev: ## Install in editable mode for development
+	pip install -e .
+
+test-local: ## Run tests locally
+	python test_mcp.py
+
+lint: ## Run code linting
+	@echo "🔍 Running linters..."
+	@command -v black >/dev/null 2>&1 && black --check . || echo "⚠️  black not found, skipping"
+
+format: ## Format code
+	@echo "🎨 Formatting code..."
+	@command -v black >/dev/null 2>&1 && black . || echo "⚠️  black not found, skipping"
+
+# === DOCKER BUILD ===
 build: ## Build Docker image
 	docker build -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
 
 build-no-cache: ## Build Docker image without cache
 	docker build --no-cache -t $(IMAGE_NAME):$(VERSION) -t $(IMAGE_NAME):latest .
 
-# Execution
+# === DOCKER RUN ===
 run: ## Start MCP server with Docker Compose
 	docker-compose up -d
 
@@ -36,34 +56,34 @@ stop: ## Stop MCP server
 restart: ## Restart MCP server
 	docker-compose restart
 
-# Tests
-test: ## Run tests in container
+# === DOCKER TESTING ===
+test: ## Run tests in Docker container
 	docker-compose --profile test run --rm teamspeak-mcp-test
 
-test-local: ## Run tests with local image
-	docker run --rm -it --env-file .env $(IMAGE_NAME):latest python test_mcp.py
+test-docker: ## Test with local Docker image
+	docker run --rm --env-file .env.test $(IMAGE_NAME):$(VERSION) test
 
-test-ghcr: ## Run tests with GHCR image
-	docker run --rm -it --env-file .env $(GHCR_IMAGE):latest python test_mcp.py
+test-ghcr: ## Test with GHCR image
+	docker run --rm --env-file .env.test $(GHCR_IMAGE):latest test
 
-# Development
+# === DOCKER UTILITIES ===
 shell: ## Open shell in container
-	docker run --rm -it --env-file .env --entrypoint /bin/bash $(IMAGE_NAME):latest
+	docker run --rm -it --env-file .env $(IMAGE_NAME):latest shell
 
 shell-ghcr: ## Open shell in GHCR container
-	docker run --rm -it --env-file .env --entrypoint /bin/bash $(GHCR_IMAGE):latest
+	docker run --rm -it --env-file .env $(GHCR_IMAGE):latest shell
 
 debug: ## Start container in debug mode
-	docker run --rm -it --env-file .env --entrypoint /bin/bash $(IMAGE_NAME):latest
+	docker run --rm -it --env-file .env $(IMAGE_NAME):latest debug
 
-# Registry operations
+# === REGISTRY OPERATIONS ===
 pull: ## Pull latest image from GHCR
 	docker pull $(GHCR_IMAGE):latest
 
 pull-version: ## Pull specific version from GHCR
 	docker pull $(GHCR_IMAGE):$(VERSION)
 
-# Logs and monitoring
+# === LOGS AND MONITORING ===
 logs: ## Show container logs
 	docker-compose logs -f
 
@@ -72,23 +92,58 @@ logs-tail: ## Show last logs
 
 status: ## Show container status
 	docker-compose ps
+	@echo ""
+	@echo "📊 Project Status:"
+	@echo "  Version: $(VERSION)"
+	@echo "  Docker image: $(IMAGE_NAME):$(VERSION)"
+	@echo "  GHCR image: $(GHCR_IMAGE):$(VERSION)"
+	@echo ""
+	@echo "🔗 Links:"
+	@echo "  - PyPI: https://pypi.org/project/teamspeak-mcp/"
+	@echo "  - GitHub: https://github.com/MarlBurroW/teamspeak-mcp"
+	@echo "  - Docker: $(GHCR_IMAGE)"
 
-# Cleanup
-clean: ## Clean containers and images
-	docker-compose down --rmi all --volumes --remove-orphans
+# === RELEASES (Automated via GitHub Actions) ===
+release-patch: ## Release patch version (bug fixes)
+	@echo "🚀 Creating patch release..."
+	python scripts/release.py patch
 
-clean-all: ## Clean everything (warning: removes all local Docker images for this project)
-	docker system prune -f
-	docker rmi $(IMAGE_NAME):latest $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
+release-minor: ## Release minor version (new features)
+	@echo "🚀 Creating minor release..."
+	python scripts/release.py minor
 
-# Installation and configuration
-install: ## Install dependencies locally
-	pip install -r requirements.txt
+release-major: ## Release major version (breaking changes)
+	@echo "🚀 Creating major release..."
+	python scripts/release.py major
 
+# === PYPI SETUP ===
+setup-pypi: ## Setup PyPI tokens (run once)
+	@echo "🔧 Setting up PyPI tokens..."
+	@echo ""
+	@echo "1. Go to: https://github.com/MarlBurroW/teamspeak-mcp/settings/secrets/actions"
+	@echo "2. Add these secrets:"
+	@echo "   - PYPI_API_TOKEN (from https://pypi.org/manage/account/token/)"
+	@echo "   - TEST_PYPI_API_TOKEN (from https://test.pypi.org/manage/account/token/)"
+	@echo ""
+	@echo "3. Then run: make release-patch"
+
+# === MANUAL PYPI (Fallback) ===
+build-package: ## Build Python package
+	rm -rf dist/ build/ *.egg-info/
+	python -m build
+	twine check dist/*
+
+upload-test: ## Upload to TestPyPI
+	twine upload --repository testpypi dist/*
+
+upload-pypi: ## Upload to PyPI
+	twine upload dist/*
+
+# === SETUP ===
 setup: ## Complete initial setup
-	@echo "Setting up TeamSpeak MCP..."
+	@echo "🚀 Setting up TeamSpeak MCP..."
 	@if [ ! -f .env ]; then \
-		echo "Creating .env file..."; \
+		echo "📝 Creating .env file..."; \
 		cp config.docker.env .env; \
 		echo "⚠️  Modify .env file with your TeamSpeak parameters"; \
 	fi
@@ -97,9 +152,9 @@ setup: ## Complete initial setup
 	@echo "💡 Modify .env then run: make run"
 
 setup-ghcr: ## Setup with pre-built GHCR image
-	@echo "Setting up TeamSpeak MCP with GHCR image..."
+	@echo "🚀 Setting up TeamSpeak MCP with GHCR image..."
 	@if [ ! -f .env ]; then \
-		echo "Creating .env file..."; \
+		echo "📝 Creating .env file..."; \
 		cp config.docker.env .env; \
 		echo "⚠️  Modify .env file with your TeamSpeak parameters"; \
 	fi
@@ -107,31 +162,20 @@ setup-ghcr: ## Setup with pre-built GHCR image
 	@echo "✅ Setup complete with GHCR image!"
 	@echo "💡 Modify .env then run: make run-ghcr"
 
-# Release management
-tag: ## Create and push a new version tag
-	@echo "Current version: $(VERSION)"
-	@read -p "Enter new version (e.g., 1.0.1): " NEW_VERSION; \
-	git tag v$$NEW_VERSION && \
-	git push origin v$$NEW_VERSION && \
-	echo "✅ Tagged and pushed v$$NEW_VERSION"
+# === CLEANUP ===
+clean: ## Clean containers and images
+	docker-compose down --rmi all --volumes --remove-orphans
 
-release: ## Show release instructions
-	@echo "🚀 Release Process:"
-	@echo "1. Update VERSION in Makefile"
-	@echo "2. Run: make tag"
-	@echo "3. GitHub Actions will automatically build and push the image"
-	@echo "4. Image will be available at: $(GHCR_IMAGE):VERSION"
+clean-all: ## Clean everything
+	docker system prune -f
+	docker rmi $(IMAGE_NAME):latest $(IMAGE_NAME):$(VERSION) 2>/dev/null || true
+	rm -rf build/ dist/ *.egg-info/ __pycache__/ .pytest_cache/
+	find . -name "*.pyc" -delete
 
-# Docker Compose shortcuts
+# === LEGACY ALIASES ===
 up: run ## Alias for 'run'
 down: stop ## Alias for 'stop'
-
-# Info
-info: ## Show image information
-	docker image inspect $(IMAGE_NAME):latest --format='{{.Config.Labels}}'
-
-version: ## Show version
-	@echo "TeamSpeak MCP version: $(VERSION)"
+version: status ## Alias for 'status'
 
 # Default help
 .DEFAULT_GOAL := help 
