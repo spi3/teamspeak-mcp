@@ -276,6 +276,131 @@ TOOLS = [
             "additionalProperties": False,
         },
     ),
+    Tool(
+        name="update_channel",
+        description="Update channel properties (name, description, password, talk power, limits, etc.)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID to update",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "New channel name (optional)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "New channel description (optional)",
+                },
+                "password": {
+                    "type": "string",
+                    "description": "New channel password (optional, empty string to remove)",
+                },
+                "max_clients": {
+                    "type": "integer",
+                    "description": "Maximum number of clients (optional)",
+                },
+                "talk_power": {
+                    "type": "integer",
+                    "description": "Required talk power to speak in channel (optional)",
+                },
+                "codec_quality": {
+                    "type": "integer",
+                    "description": "Audio codec quality 1-10 (optional)",
+                },
+                "permanent": {
+                    "type": "boolean",
+                    "description": "Make channel permanent (optional)",
+                },
+            },
+            "required": ["channel_id"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="set_channel_talk_power",
+        description="Set talk power requirement for a channel (useful for AFK/silent channels)",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID to configure",
+                },
+                "talk_power": {
+                    "type": "integer",
+                    "description": "Required talk power (0=everyone can talk, 999=silent channel)",
+                },
+                "preset": {
+                    "type": "string",
+                    "description": "Quick preset: 'silent' (999), 'moderated' (50), 'normal' (0)",
+                    "enum": ["silent", "moderated", "normal"],
+                },
+            },
+            "required": ["channel_id"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="channel_info",
+        description="Get detailed information about a specific channel",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID to get info for",
+                },
+            },
+            "required": ["channel_id"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="manage_channel_permissions",
+        description="Add or remove specific permissions for a channel",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID to modify permissions for",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["add", "remove", "list"],
+                },
+                "permission": {
+                    "type": "string",
+                    "description": "Permission name (required for add/remove actions)",
+                },
+                "value": {
+                    "type": "integer",
+                    "description": "Permission value (required for add action)",
+                },
+            },
+            "required": ["channel_id", "action"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="client_info_detailed",
+        description="Get detailed information about a specific client",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "client_id": {
+                    "type": "integer",
+                    "description": "Client ID to get detailed info for",
+                },
+            },
+            "required": ["client_id"],
+            "additionalProperties": False,
+        },
+    ),
 ]
 
 class TeamSpeakMCPServer:
@@ -338,6 +463,16 @@ async def run_server():
                 return await _ban_client(arguments)
             elif name == "server_info":
                 return await _server_info()
+            elif name == "update_channel":
+                return await _update_channel(arguments)
+            elif name == "set_channel_talk_power":
+                return await _set_channel_talk_power(arguments)
+            elif name == "channel_info":
+                return await _channel_info(arguments)
+            elif name == "manage_channel_permissions":
+                return await _manage_channel_permissions(arguments)
+            elif name == "client_info_detailed":
+                return await _client_info_detailed(arguments)
             else:
                 raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
@@ -566,6 +701,200 @@ async def _server_info() -> list[TextContent]:
         return [TextContent(type="text", text=result)]
     except Exception as e:
         raise Exception(f"Error retrieving server info: {e}")
+
+async def _update_channel(args: dict) -> list[TextContent]:
+    """Update channel properties."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    
+    # Build kwargs dict with only non-None values
+    kwargs = {"cid": channel_id}
+    
+    if args.get("name"):
+        kwargs["channel_name"] = args["name"]
+    if args.get("description"):
+        kwargs["channel_description"] = args["description"]  
+    if args.get("password") is not None:
+        kwargs["channel_password"] = args["password"]
+    if args.get("max_clients"):
+        kwargs["channel_maxclients"] = args["max_clients"]
+    if args.get("talk_power") is not None:
+        kwargs["channel_needed_talk_power"] = args["talk_power"]
+    if args.get("codec_quality"):
+        kwargs["channel_codec_quality"] = args["codec_quality"]
+    if args.get("permanent") is not None:
+        kwargs["channel_flag_permanent"] = 1 if args["permanent"] else 0
+    
+    try:
+        await asyncio.to_thread(ts_connection.connection.channeledit, **kwargs)
+        
+        changes = [k.replace("channel_", "") for k in kwargs.keys() if k != "cid"]
+        result = f"✅ Channel {channel_id} updated successfully\n"
+        result += f"📝 Modified properties: {', '.join(changes)}"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error updating channel: {e}")
+
+async def _set_channel_talk_power(args: dict) -> list[TextContent]:
+    """Set talk power requirement for a channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    talk_power = args.get("talk_power")
+    preset = args.get("preset")
+    
+    # Handle presets
+    if preset:
+        if preset == "silent":
+            talk_power = 999
+        elif preset == "moderated":
+            talk_power = 50
+        elif preset == "normal":
+            talk_power = 0
+    
+    if talk_power is None:
+        raise Exception("Either talk_power or preset must be specified")
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.channeledit,
+            cid=channel_id,
+            channel_needed_talk_power=talk_power
+        )
+        
+        preset_text = f" (preset: {preset})" if preset else ""
+        result = f"✅ Talk power for channel {channel_id} set to {talk_power}{preset_text}\n"
+        
+        if talk_power == 0:
+            result += "🔊 Channel is now open - everyone can talk"
+        elif talk_power >= 999:
+            result += "🔇 Channel is now silent - only high-privilege users can talk"
+        elif talk_power >= 50:
+            result += "🔒 Channel is now moderated - only moderators+ can talk"
+        else:
+            result += f"⚡ Custom talk power requirement: {talk_power}"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error setting channel talk power: {e}")
+
+async def _channel_info(args: dict) -> list[TextContent]:
+    """Get detailed information about a specific channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    
+    try:
+        info = await asyncio.to_thread(ts_connection.connection.channelinfo, cid=channel_id)
+        
+        result = "📋 **Channel Information:**\n\n"
+        result += f"• **ID**: {info.get('cid', 'N/A')}\n"
+        result += f"• **Name**: {info.get('channel_name', 'N/A')}\n"
+        result += f"• **Description**: {info.get('channel_description', 'N/A')}\n"
+        result += f"• **Topic**: {info.get('channel_topic', 'N/A')}\n"
+        result += f"• **Password Protected**: {'Yes' if info.get('channel_flag_password') == '1' else 'No'}\n"
+        result += f"• **Max Clients**: {info.get('channel_maxclients', 'Unlimited')}\n"
+        result += f"• **Current Clients**: {info.get('total_clients', '0')}\n"
+        result += f"• **Talk Power Required**: {info.get('channel_needed_talk_power', '0')}\n"
+        result += f"• **Codec**: {info.get('channel_codec', 'N/A')}\n"
+        result += f"• **Codec Quality**: {info.get('channel_codec_quality', 'N/A')}\n"
+        result += f"• **Type**: {'Permanent' if info.get('channel_flag_permanent') == '1' else 'Temporary'}\n"
+        result += f"• **Order**: {info.get('channel_order', 'N/A')}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving channel info: {e}")
+
+async def _manage_channel_permissions(args: dict) -> list[TextContent]:
+    """Add or remove specific permissions for a channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    action = args["action"]
+    permission = args.get("permission")
+    value = args.get("value")
+    
+    try:
+        if action == "add":
+            if not permission or value is None:
+                raise ValueError("Permission name and value required for add action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.channeladdperm,
+                cid=channel_id, permsid=permission, permvalue=value
+            )
+            result = f"✅ Permission '{permission}' added to channel {channel_id} with value {value}"
+            
+        elif action == "remove":
+            if not permission:
+                raise ValueError("Permission name required for remove action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.channeldelperm,
+                cid=channel_id, permsid=permission
+            )
+            result = f"✅ Permission '{permission}' removed from channel {channel_id}"
+            
+        elif action == "list":
+            perms = await asyncio.to_thread(
+                ts_connection.connection.channelpermlist,
+                cid=channel_id, permsid=True
+            )
+            
+            result = f"📋 **Channel {channel_id} Permissions:**\n\n"
+            if perms:
+                for perm in perms:
+                    perm_name = perm.get('permsid', 'N/A')
+                    perm_value = perm.get('permvalue', 'N/A')
+                    result += f"• **{perm_name}**: {perm_value}\n"
+            else:
+                result += "No custom permissions set for this channel."
+                
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing channel permissions: {e}")
+
+async def _client_info_detailed(args: dict) -> list[TextContent]:
+    """Get detailed information about a specific client."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_id = args["client_id"]
+    
+    try:
+        info = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+        
+        result = "👤 **Client Information:**\n\n"
+        result += f"• **ID**: {info.get('clid', 'N/A')}\n"
+        result += f"• **Database ID**: {info.get('client_database_id', 'N/A')}\n"
+        result += f"• **Nickname**: {info.get('client_nickname', 'N/A')}\n"
+        result += f"• **Unique ID**: {info.get('client_unique_identifier', 'N/A')[:32]}...\n"
+        result += f"• **Channel ID**: {info.get('cid', 'N/A')}\n"
+        result += f"• **Talk Power**: {info.get('client_talk_power', '0')}\n"
+        result += f"• **Client Type**: {'ServerQuery' if info.get('client_type') == '1' else 'Regular'}\n"
+        result += f"• **Platform**: {info.get('client_platform', 'N/A')}\n"
+        result += f"• **Version**: {info.get('client_version', 'N/A')}\n"
+        result += f"• **Away**: {'Yes' if info.get('client_away') == '1' else 'No'}\n"
+        result += f"• **Away Message**: {info.get('client_away_message', 'N/A')}\n"
+        result += f"• **Input Muted**: {'Yes' if info.get('client_input_muted') == '1' else 'No'}\n"
+        result += f"• **Output Muted**: {'Yes' if info.get('client_output_muted') == '1' else 'No'}\n"
+        result += f"• **Connected Since**: {info.get('client_created', 'N/A')}\n"
+        result += f"• **Last Connected**: {info.get('client_lastconnected', 'N/A')}\n"
+        result += f"• **Connection Time**: {info.get('connection_connected_time', 'N/A')}ms\n"
+        result += f"• **Country**: {info.get('client_country', 'N/A')}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving client info: {e}")
 
 def main():
     """Entry point for setuptools."""
