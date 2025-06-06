@@ -41,7 +41,7 @@ async def test_tools():
     # Test tools list
     from mcp.types import ListToolsRequest
     
-    tools_request = ListToolsRequest()
+    tools_request = ListToolsRequest(method="tools/list")
     tools_result = await server.handle_list_tools(tools_request)
     
     print(f"📋 {len(tools_result.tools)} tools available:")
@@ -54,16 +54,22 @@ async def main():
     """Main test function."""
     print("🚀 TeamSpeak MCP Tests\n")
     
-    # Load environment variables from .env if present
-    env_file = ".env"
-    if os.path.exists(env_file):
-        print(f"📄 Loading configuration from {env_file}")
-        with open(env_file, 'r') as f:
-            for line in f:
-                if '=' in line and not line.strip().startswith('#'):
-                    key, value = line.strip().split('=', 1)
-                    os.environ[key] = value
-    else:
+    # Load environment variables from .env or .env.test if present
+    env_files = [".env.test", ".env"]
+    loaded_env = False
+    
+    for env_file in env_files:
+        if os.path.exists(env_file):
+            print(f"📄 Loading configuration from {env_file}")
+            with open(env_file, 'r') as f:
+                for line in f:
+                    if '=' in line and not line.strip().startswith('#'):
+                        key, value = line.strip().split('=', 1)
+                        os.environ[key] = value
+            loaded_env = True
+            break
+    
+    if not loaded_env:
         print("⚠️  .env file not found, using system environment variables")
     
     # Run tests

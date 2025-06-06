@@ -39,9 +39,10 @@ class TeamSpeakConnection:
     async def connect(self) -> bool:
         """Connect to TeamSpeak server."""
         try:
-            self.connection = ts3.query.TS3Connection(self.host, self.port)
-            await self.connection.login(client_login_name=self.user, client_login_password=self.password)
-            await self.connection.use(sid=self.server_id)
+            # Use asyncio.to_thread for blocking operations
+            self.connection = await asyncio.to_thread(ts3.query.TS3Connection, self.host, self.port)
+            await asyncio.to_thread(self.connection.login, client_login_name=self.user, client_login_password=self.password)
+            await asyncio.to_thread(self.connection.use, sid=self.server_id)
             logger.info("TeamSpeak connection established successfully")
             return True
         except Exception as e:
@@ -52,9 +53,13 @@ class TeamSpeakConnection:
     async def disconnect(self):
         """Disconnect from TeamSpeak server."""
         if self.connection:
-            await self.connection.quit()
-            self.connection = None
-            logger.info("TeamSpeak disconnected")
+            try:
+                await asyncio.to_thread(self.connection.quit)
+            except Exception as e:
+                logger.warning(f"Error during disconnect: {e}")
+            finally:
+                self.connection = None
+                logger.info("TeamSpeak disconnected")
     
     def is_connected(self) -> bool:
         """Check if connection is active."""
@@ -323,11 +328,13 @@ class TeamSpeakMCPServer:
         
         try:
             if channel_id:
-                await ts_connection.connection.sendtextmessage(
+                await asyncio.to_thread(
+                    ts_connection.connection.sendtextmessage,
                     targetmode=2, target=channel_id, msg=message
                 )
             else:
-                await ts_connection.connection.sendtextmessage(
+                await asyncio.to_thread(
+                    ts_connection.connection.sendtextmessage,
                     targetmode=2, target=0, msg=message
                 )
             
@@ -352,7 +359,8 @@ class TeamSpeakMCPServer:
         message = args["message"]
         
         try:
-            await ts_connection.connection.sendtextmessage(
+            await asyncio.to_thread(
+                ts_connection.connection.sendtextmessage,
                 targetmode=1, target=client_id, msg=message
             )
             
@@ -374,7 +382,7 @@ class TeamSpeakMCPServer:
             )
         
         try:
-            clients = await ts_connection.connection.clientlist()
+            clients = await asyncio.to_thread(ts_connection.connection.clientlist)
             
             result = "👥 **Connected clients:**\n\n"
             for client in clients:
@@ -399,7 +407,7 @@ class TeamSpeakMCPServer:
             )
         
         try:
-            channels = await ts_connection.connection.channellist()
+            channels = await asyncio.to_thread(ts_connection.connection.channellist)
             
             result = "📋 **Available channels:**\n\n"
             for channel in channels:
@@ -428,7 +436,8 @@ class TeamSpeakMCPServer:
         
         try:
             channel_type = 1 if permanent else 0
-            result = await ts_connection.connection.channelcreate(
+            result = await asyncio.to_thread(
+                ts_connection.connection.channelcreate,
                 channel_name=name,
                 channel_flag_permanent=permanent,
                 cpid=parent_id
@@ -455,7 +464,10 @@ class TeamSpeakMCPServer:
         force = args.get("force", False)
         
         try:
-            await ts_connection.connection.channeldelete(cid=channel_id, force=1 if force else 0)
+            await asyncio.to_thread(
+                ts_connection.connection.channeldelete,
+                cid=channel_id, force=1 if force else 0
+            )
             
             return CallToolResult(
                 content=[TextContent(type="text", text=f"✅ Channel {channel_id} deleted successfully")]
@@ -478,7 +490,10 @@ class TeamSpeakMCPServer:
         channel_id = args["channel_id"]
         
         try:
-            await ts_connection.connection.clientmove(clid=client_id, cid=channel_id)
+            await asyncio.to_thread(
+                ts_connection.connection.clientmove,
+                clid=client_id, cid=channel_id
+            )
             
             return CallToolResult(
                 content=[TextContent(type="text", text=f"✅ Client {client_id} moved to channel {channel_id}")]
@@ -503,7 +518,8 @@ class TeamSpeakMCPServer:
         
         try:
             kick_type = 5 if from_server else 4  # 5 = server, 4 = channel
-            await ts_connection.connection.clientkick(
+            await asyncio.to_thread(
+                ts_connection.connection.clientkick,
                 clid=client_id, reasonid=kick_type, reasonmsg=reason
             )
             
@@ -530,13 +546,14 @@ class TeamSpeakMCPServer:
         duration = args.get("duration", 0)
         
         try:
-            await ts_connection.connection.banclient(
+            await asyncio.to_thread(
+                ts_connection.connection.banclient,
                 clid=client_id, time=duration, banreason=reason
             )
             
-            duration_text = "permanent" if duration == 0 else f"{duration} seconds"
+            duration_text = "permanently" if duration == 0 else f"for {duration} seconds"
             return CallToolResult(
-                content=[TextContent(type="text", text=f"✅ Client {client_id} banned ({duration_text}): {reason}")]
+                content=[TextContent(type="text", text=f"✅ Client {client_id} banned {duration_text}: {reason}")]
             )
         except Exception as e:
             return CallToolResult(
@@ -553,21 +570,21 @@ class TeamSpeakMCPServer:
             )
         
         try:
-            info = await ts_connection.connection.serverinfo()
+            info = await asyncio.to_thread(ts_connection.connection.serverinfo)
             
-            result = "🖥️ **Server information:**\n\n"
+            result = "🖥️ **TeamSpeak Server Information:**\n\n"
             result += f"• **Name**: {info.get('virtualserver_name', 'N/A')}\n"
-            result += f"• **Connected clients**: {info.get('virtualserver_clientsonline', 'N/A')}\n"
-            result += f"• **Max slots**: {info.get('virtualserver_maxclients', 'N/A')}\n"
-            result += f"• **Uptime**: {info.get('virtualserver_uptime', 'N/A')} seconds\n"
             result += f"• **Version**: {info.get('virtualserver_version', 'N/A')}\n"
+            result += f"• **Platform**: {info.get('virtualserver_platform', 'N/A')}\n"
+            result += f"• **Clients**: {info.get('virtualserver_clientsonline', 'N/A')}/{info.get('virtualserver_maxclients', 'N/A')}\n"
+            result += f"• **Uptime**: {info.get('virtualserver_uptime', 'N/A')} seconds\n"
             
             return CallToolResult(
                 content=[TextContent(type="text", text=result)]
             )
         except Exception as e:
             return CallToolResult(
-                content=[TextContent(type="text", text=f"❌ Error retrieving server information: {e}")],
+                content=[TextContent(type="text", text=f"❌ Error retrieving server info: {e}")],
                 isError=True
             )
 
