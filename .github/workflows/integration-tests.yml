@@ -47,12 +47,12 @@ jobs:
       - name: Build test images
         run: |
           echo "🏗️ Building Docker images for integration tests..."
-          docker-compose -f docker-compose.test.yml build --cache-from=type=local,src=/tmp/.buildx-cache
+          docker compose -f docker-compose.test.yml build --cache-from=type=local,src=/tmp/.buildx-cache
           
       - name: Start TeamSpeak 3 Server
         run: |
           echo "🚀 Starting TeamSpeak 3 server..."
-          docker-compose -f docker-compose.test.yml up -d teamspeak3-server
+          docker compose -f docker-compose.test.yml up -d teamspeak3-server
           
       - name: Wait for TeamSpeak server
         run: |
@@ -61,7 +61,7 @@ jobs:
           counter=0
           
           while [ $counter -lt $timeout ]; do
-            if docker-compose -f docker-compose.test.yml exec -T teamspeak3-server nc -z localhost 10011 2>/dev/null; then
+            if docker compose -f docker-compose.test.yml exec -T teamspeak3-server nc -z localhost 10011 2>/dev/null; then
               echo "✅ TeamSpeak server is ready after ${counter}s"
               break
             fi
@@ -69,7 +69,7 @@ jobs:
             if [ $counter -eq $timeout ]; then
               echo "❌ TeamSpeak server failed to start after ${timeout}s"
               echo "📋 Server logs:"
-              docker-compose -f docker-compose.test.yml logs teamspeak3-server
+              docker compose -f docker-compose.test.yml logs teamspeak3-server
               exit 1
             fi
             
@@ -80,7 +80,7 @@ jobs:
       - name: Extract admin token
         run: |
           echo "🔑 Extracting TeamSpeak admin token..."
-          docker-compose -f docker-compose.test.yml up token-extractor
+          docker compose -f docker-compose.test.yml up token-extractor
           
           if [ -f scripts/admin_token.txt ]; then
             echo "✅ Admin token extracted successfully"
@@ -107,7 +107,7 @@ jobs:
           fi
           
           # Run integration tests
-          docker-compose -f docker-compose.test.yml run --rm \
+          docker compose -f docker-compose.test.yml run --rm \
             -e TEAMSPEAK_HOST=$TEAMSPEAK_HOST \
             -e TEAMSPEAK_PORT=$TEAMSPEAK_PORT \
             -e TEAMSPEAK_USER=$TEAMSPEAK_USER \
@@ -169,17 +169,17 @@ jobs:
           echo "================================"
           echo ""
           echo "📋 TeamSpeak 3 Server logs:"
-          docker-compose -f docker-compose.test.yml logs --tail=100 teamspeak3-server
+          docker compose -f docker-compose.test.yml logs --tail=100 teamspeak3-server
           echo ""
           echo "📋 MCP Test container logs:"
-          docker-compose -f docker-compose.test.yml logs --tail=100 teamspeak-mcp-test
+          docker compose -f docker-compose.test.yml logs --tail=100 teamspeak-mcp-test
           echo ""
           echo "📋 Token extractor logs:"
-          docker-compose -f docker-compose.test.yml logs token-extractor
+          docker compose -f docker-compose.test.yml logs token-extractor
 
       - name: Cleanup
         if: always()
         run: |
           echo "🧹 Cleaning up test environment..."
-          docker-compose -f docker-compose.test.yml down --volumes --remove-orphans
+          docker compose -f docker-compose.test.yml down --volumes --remove-orphans
           docker system prune -f 
