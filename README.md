@@ -146,7 +146,7 @@ TEAMSPEAK_SERVER_ID=1
 
 ### 🐳 With Pre-built Docker Image
 
-**Option 1: Using environment variables directly (Recommended)**
+**⚠️ Recommended Configuration** (Using Claude's env section):
 
 ```json
 {
@@ -155,27 +155,29 @@ TEAMSPEAK_SERVER_ID=1
       "command": "docker",
       "args": [
         "run", "--rm", "-i",
-        "-e", "TEAMSPEAK_HOST=your-server.example.com",
-        "-e", "TEAMSPEAK_PORT=10011",
-        "-e", "TEAMSPEAK_USER=mcp_user",
-        "-e", "TEAMSPEAK_PASSWORD=your-password",
-        "-e", "TEAMSPEAK_SERVER_ID=1",
         "ghcr.io/marlburrow/teamspeak-mcp:latest"
-      ]
+      ],
+      "env": {
+        "TEAMSPEAK_HOST": "ts.obsmania.com",
+        "TEAMSPEAK_PORT": "10011",
+        "TEAMSPEAK_USER": "claude",
+        "TEAMSPEAK_PASSWORD": "QtIjZoCX",
+        "TEAMSPEAK_SERVER_ID": "1"
+      }
     }
   }
 }
 ```
 
-**Option 2: Using .env file**
+**Alternative 1: Using .env file**
 
 First, create a `.env` file with your credentials:
 ```bash
 # Save this as ~/.teamspeak-mcp.env (or any path you prefer)
-TEAMSPEAK_HOST=your-server.example.com
+TEAMSPEAK_HOST=ts.obsmania.com
 TEAMSPEAK_PORT=10011
-TEAMSPEAK_USER=mcp_user
-TEAMSPEAK_PASSWORD=your-password
+TEAMSPEAK_USER=claude
+TEAMSPEAK_PASSWORD=QtIjZoCX
 TEAMSPEAK_SERVER_ID=1
 ```
 
@@ -195,7 +197,7 @@ Then configure Claude Desktop:
 }
 ```
 
-**Option 3: Using Claude's env section**
+**Alternative 2: Environment variables in args (may have issues)**
 
 ```json
 {
@@ -204,15 +206,13 @@ Then configure Claude Desktop:
       "command": "docker",
       "args": [
         "run", "--rm", "-i",
+        "-e", "TEAMSPEAK_HOST=ts.obsmania.com",
+        "-e", "TEAMSPEAK_PORT=10011",
+        "-e", "TEAMSPEAK_USER=claude",
+        "-e", "TEAMSPEAK_PASSWORD=QtIjZoCX",
+        "-e", "TEAMSPEAK_SERVER_ID=1",
         "ghcr.io/marlburrow/teamspeak-mcp:latest"
-      ],
-      "env": {
-        "TEAMSPEAK_HOST": "your-server.example.com",
-        "TEAMSPEAK_PORT": "10011",
-        "TEAMSPEAK_USER": "mcp_user",
-        "TEAMSPEAK_PASSWORD": "your-password",
-        "TEAMSPEAK_SERVER_ID": "1"
-      }
+      ]
     }
   }
 }

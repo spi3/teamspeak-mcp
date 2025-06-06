@@ -28,6 +28,24 @@ success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
+# Debug function to show all environment variables
+debug_env() {
+    log "🔍 Environment Variables Debug:"
+    echo "All TEAMSPEAK_* variables:"
+    env | grep "^TEAMSPEAK_" | while read -r line; do
+        key=$(echo "$line" | cut -d'=' -f1)
+        if [[ "$key" == "TEAMSPEAK_PASSWORD" ]]; then
+            echo "  $key=[REDACTED]"
+        else
+            echo "  $line"
+        fi
+    done
+    echo ""
+    echo "All environment variables count: $(env | wc -l)"
+    echo "Docker-related variables:"
+    env | grep -E "^(PATH|HOME|USER|HOSTNAME)" | head -5
+}
+
 # Check required environment variables
 check_env() {
     log "Checking configuration..."
@@ -71,6 +89,7 @@ show_config() {
 case "${1:-server}" in
     "server")
         log "🚀 Starting TeamSpeak MCP server..."
+        debug_env
         show_config
         check_env
         
@@ -91,6 +110,17 @@ case "${1:-server}" in
         success "All tests passed!"
         ;;
         
+    "debug")
+        log "🔍 Debug mode - Full environment analysis..."
+        debug_env
+        show_config
+        echo ""
+        echo "Current working directory: $(pwd)"
+        echo "Python version: $(python --version)"
+        echo "Available Python packages:"
+        pip list | grep -E "(mcp|ts3|pydantic)" || echo "  No relevant packages found"
+        ;;
+        
     "shell"|"bash")
         log "🐚 Shell mode - Opening interactive shell..."
         exec /bin/bash
@@ -106,6 +136,7 @@ case "${1:-server}" in
         echo ""
         echo "  server (default)  - Launch MCP server"
         echo "  test             - Connection tests"
+        echo "  debug            - Full environment analysis"
         echo "  shell|bash       - Interactive shell"
         echo "  config           - Display configuration"
         echo "  help             - This help"
