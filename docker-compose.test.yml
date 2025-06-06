@@ -38,6 +38,8 @@ services:
       TS3SERVER_QUERY_BUFFER: 1
       # Désactiver les fonctionnalités non essentielles en CI
       TS3SERVER_HINTS: 0
+      # Configuration réseau pour autoriser les connexions inter-container
+      TS3SERVER_QUERY_IP_ALLOWLIST: "127.0.0.1,::1,172.20.0.0/16,10.0.0.0/8,192.168.0.0/16"
     ports:
       - "9987:9987/udp"   # TeamSpeak port
       - "10011:10011"     # ServerQuery port  

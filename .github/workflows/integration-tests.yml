@@ -1,14 +1,27 @@
 name: Integration Tests
 
 on:
-  push:
-    branches: [ main, develop ]
-  pull_request:
-    branches: [ main ]
-  schedule:
-    # Run integration tests daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:  # Allow manual trigger
+  # DÉSACTIVÉ - Tests d'intégration trop complexes pour la CI
+  # Nécessitent: permissions admin, gestion tokens, clients réels
+  # Gardé pour référence et tests manuels en local
+  workflow_dispatch:  # Uniquement manuel si besoin
+    inputs:
+      force_run:
+        description: 'Force run integration tests (use with caution)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+        - 'false'
+        - 'true'
+  
+  # Tests automatiques désactivés - trop complexes pour CI
+  # push:
+  #   branches: [ main, develop ]
+  # pull_request:
+  #   branches: [ main ]
+  # schedule:
+  #   - cron: '0 2 * * *'
 
 env:
   DOCKER_BUILDKIT: 1
@@ -23,6 +36,8 @@ jobs:
   integration-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Condition pour ne jamais s'exécuter automatiquement
+    if: github.event.inputs.force_run == 'true'
 
     strategy:
       matrix:

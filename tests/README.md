@@ -1,6 +1,94 @@
-# Tests d'Intégration TeamSpeak MCP
+# Tests TeamSpeak MCP
 
-Ce répertoire contient les tests d'intégration complets pour TeamSpeak MCP, utilisant un vrai serveur TeamSpeak 3 via Docker.
+Ce dossier contient les tests pour le serveur MCP TeamSpeak.
+
+## 🏗️ **Infrastructure de Tests**
+
+### **CI/CD Pipeline**
+- ✅ **Tests CI** (`.github/workflows/ci.yml`) : Tests de base automatisés
+  - Vérification syntaxe Python
+  - Tests d'import des modules
+  - Validation des 18 outils MCP
+  - Build Docker
+  - Tests de démarrage
+
+- ⚠️ **Tests d'intégration** (`.github/workflows/integration-tests.yml`) : **DÉSACTIVÉS**
+  - Trop complexes pour CI automatique
+  - Nécessitent permissions admin TeamSpeak
+  - Gestion des tokens, clients réels
+  - Disponibles pour tests manuels uniquement
+
+## 🧪 **Tests Manuels Locaux**
+
+### **Tests d'Intégration Complets**
+
+Pour tester tous les 18 outils MCP avec un vrai serveur TeamSpeak :
+
+```bash
+# Démarrer l'environnement de test
+./scripts/run-integration-tests.sh
+
+# Ou manuellement
+docker compose -f docker-compose.test.yml up -d teamspeak3-server
+docker compose -f docker-compose.test.yml up token-extractor
+docker compose -f docker-compose.test.yml run --rm teamspeak-mcp-test integration-test
+```
+
+### **Support Multi-Architecture**
+
+L'infrastructure supporte automatiquement :
+- **Local ARM64 (Mac M1/M2)** : Émulation AMD64 via Docker
+- **CI AMD64** : Image native TeamSpeak
+- **Configuration automatique** via scripts/run-integration-tests.sh
+
+### **Résultats des Tests**
+
+Les tests d'intégration produisent un rapport détaillé :
+
+```
+📊 TEAMSPEAK MCP INTEGRATION TEST REPORT
+======================================================================
+📋 SUMMARY:
+   • Total MCP Tools: 18
+   • Actually Tested: 12
+   • ✅ Successes: X
+   • 🎯 Success Rate: X% (of testable tools)
+
+📊 DETAILED BREAKDOWN:
+✅ SUCCESSFUL TOOLS: [outils qui fonctionnent]
+🔒 PERMISSION FAILURES: [nécessitent token admin]
+⚠️ IMPOSSIBLE TO TEST: [nécessitent clients réels]
+⏭️ SKIPPED: [dépendances échouées]
+💥 OTHER FAILURES: [autres problèmes]
+```
+
+## 🔧 **Configuration Avancée**
+
+### **Variables d'Environnement**
+
+```bash
+TEAMSPEAK_HOST=teamspeak3-server
+TEAMSPEAK_PORT=10011
+TEAMSPEAK_USER=serveradmin
+TEAMSPEAK_PASSWORD=""  # Token admin si disponible
+TEAMSPEAK_SERVER_ID=1
+```
+
+### **Permissions TeamSpeak**
+
+Les tests d'intégration montrent quels outils nécessitent :
+- **Permissions de base** : Connexion, lecture
+- **Permissions admin** : Gestion serveur, canaux, utilisateurs
+- **Clients réels** : Actions sur utilisateurs (kick, ban, move)
+
+## 📝 **Tests en Développement**
+
+Pour activer les tests d'intégration en CI (déconseillé) :
+1. Aller dans Actions GitHub
+2. Sélectionner "Integration Tests"
+3. Run workflow manuellement avec `force_run: true`
+
+**Note** : Ces tests peuvent être instables et longs à maintenir.
 
 ## 🎯 **Vue d'ensemble**
 

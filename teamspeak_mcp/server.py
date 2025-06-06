@@ -60,8 +60,17 @@ class TeamSpeakConnection:
         try:
             # Use asyncio.to_thread for blocking operations
             self.connection = await asyncio.to_thread(ts3.query.TS3Connection, self.host, self.port)
-            await asyncio.to_thread(self.connection.login, client_login_name=self.user, client_login_password=self.password)
             await asyncio.to_thread(self.connection.use, sid=self.server_id)
+            
+            # Try to use admin token if provided
+            if self.password:
+                try:
+                    # Use the ts3 library's tokenuse method
+                    await asyncio.to_thread(self.connection.tokenuse, token=self.password)
+                    logger.info("Successfully used admin privilege key")
+                except Exception as token_error:
+                    logger.warning(f"Could not use admin token: {token_error}, continuing with basic permissions")
+            
             logger.info("TeamSpeak connection established successfully")
             return True
         except Exception as e:

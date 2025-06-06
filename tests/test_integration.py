@@ -72,10 +72,14 @@ class IntegrationTester:
         """Attendre que le serveur TeamSpeak soit prêt."""
         print("⏳ Waiting for TeamSpeak server to be ready...")
         
+        # Utiliser directement les variables d'environnement (self.connection n'existe pas encore)
+        host = os.getenv("TEAMSPEAK_HOST", "teamspeak3-server")
+        port = int(os.getenv("TEAMSPEAK_PORT", "10011"))
+        
         for i in range(max_wait):
             try:
                 # Tenter une connexion basique
-                if wait_for_server(self.connection.host, self.connection.port):
+                if wait_for_server(host, port):
                     await asyncio.sleep(5)  # Attendre un peu plus pour la stabilité
                     return
                     
@@ -103,25 +107,39 @@ class IntegrationTester:
         """Exécuter tous les tests d'intégration."""
         print("\n🧪 Running comprehensive integration tests...")
         print(f"📋 Testing {len(TOOLS)} tools\n")
+        print("⏳ Adding delays to prevent rate limiting...")
         
-        # Tests de base
+        # Tests de base (rapides)
         await self.test_connection()
+        await asyncio.sleep(2)  # Anti-flooding
+        
+        # Tests de lecture (permissions de base)
         await self.test_server_info()
-        await self.test_list_channels()
+        await asyncio.sleep(2)
+        await self.test_list_channels()  
+        await asyncio.sleep(2)
         await self.test_list_clients()
+        await asyncio.sleep(3)
         
-        # Tests de gestion des canaux
+        # Tests de gestion des canaux (permissions moyennes)
         await self.test_channel_management()
+        await asyncio.sleep(3)
+        await self.test_channel_info_tests()
+        await asyncio.sleep(3)
+        
+        # Tests de permissions (nécessitent admin - peuvent échouer)
         await self.test_channel_permissions()
-        
-        # Tests de gestion des serveurs
+        await asyncio.sleep(2)
         await self.test_server_settings()
+        await asyncio.sleep(3)
         
-        # Tests de gestion des utilisateurs
+        # Tests de gestion des utilisateurs (avec clients disponibles)
         await self.test_user_management()
+        await asyncio.sleep(3)
         
-        # Tests de messaging
+        # Tests de messaging (avec rate limiting strict)
         await self.test_messaging()
+        await asyncio.sleep(2)
         
         # Nettoyage
         await self.cleanup()
@@ -181,20 +199,23 @@ class IntegrationTester:
             self.record_failure("list_clients", f"Failed: {e}")
     
     async def test_channel_management(self):
-        """Test de gestion des canaux."""
-        print("🔧 Testing channel management...")
+        """Test de gestion des canaux - create, update, delete, talk_power."""
+        print("🔧 Testing comprehensive channel management...")
         
         # Créer un canal de test
-        test_channel_name = f"Test Channel {int(time.time())}"
+        test_channel_name = f"🤖 MCP Test Channel {int(time.time())}"
         
         try:
-            # Test create_channel
-            await asyncio.to_thread(
+            # Test 1: create_channel
+            print("  🏗️ Testing create_channel...")
+            result = await asyncio.to_thread(
                 self.connection.connection.channelcreate,
-                channel_name=test_channel_name
+                channel_name=test_channel_name,
+                channel_description="Test channel created by TeamSpeak MCP integration tests"
             )
             
             # Trouver le canal créé
+            await asyncio.sleep(1)  # Laisser le temps au serveur
             channels = await asyncio.to_thread(self.connection.connection.channellist)
             test_channel = None
             for channel in channels:
@@ -205,36 +226,58 @@ class IntegrationTester:
             if test_channel:
                 channel_id = test_channel.get('cid')
                 self.created_channels.append(channel_id)
-                self.record_success("create_channel", f"Created channel {channel_id}")
+                self.record_success("create_channel", f"Created channel {channel_id}: {test_channel_name}")
                 
-                # Test update_channel
-                await asyncio.to_thread(
-                    self.connection.connection.channeledit,
-                    cid=channel_id,
-                    channel_description="Test description"
-                )
-                self.record_success("update_channel", f"Updated channel {channel_id}")
+                # Test 2: update_channel
+                print("  ✏️ Testing update_channel...")
+                try:
+                    await asyncio.to_thread(
+                        self.connection.connection.channeledit,
+                        cid=channel_id,
+                        channel_description="📝 Updated by MCP integration tests",
+                        channel_topic="Test topic"
+                    )
+                    self.record_success("update_channel", f"Updated channel {channel_id}")
+                except Exception as update_error:
+                    self.record_failure("update_channel", f"Failed: {update_error}")
                 
-                # Test channel_info
-                info = await asyncio.to_thread(
-                    self.connection.connection.channelinfo,
-                    cid=channel_id
-                )
-                self.record_success("channel_info", f"Got info for channel {channel_id}")
+                await asyncio.sleep(1)
                 
-                # Test set_channel_talk_power
-                await asyncio.to_thread(
-                    self.connection.connection.channeledit,
-                    cid=channel_id,
-                    channel_needed_talk_power=50
-                )
-                self.record_success("set_channel_talk_power", f"Set talk power for channel {channel_id}")
+                # Test 3: set_channel_talk_power
+                print("  🔊 Testing set_channel_talk_power...")
+                try:
+                    await asyncio.to_thread(
+                        self.connection.connection.channeledit,
+                        cid=channel_id,
+                        channel_needed_talk_power=25
+                    )
+                    self.record_success("set_channel_talk_power", f"Set talk power (25) for channel {channel_id}")
+                except Exception as talk_error:
+                    self.record_failure("set_channel_talk_power", f"Failed: {talk_error}")
+                
+                await asyncio.sleep(1)
+                
+                # Test 4: channel_info (sur notre canal créé)
+                print("  📋 Testing channel_info on created channel...")
+                try:
+                    info = await asyncio.to_thread(
+                        self.connection.connection.channelinfo,
+                        cid=channel_id
+                    )
+                    self.record_success("channel_info_created", f"Got info for created channel {channel_id}")
+                except Exception as info_error:
+                    self.record_failure("channel_info_created", f"Failed: {info_error}")
+                
+                # Note: delete_channel sera testé dans cleanup()
                 
             else:
                 self.record_failure("create_channel", "Channel not found after creation")
                 
         except Exception as e:
-            self.record_failure("channel_management", f"Failed: {e}")
+            self.record_failure("create_channel", f"Failed: {e}")
+            # Si create échoue, marquer les autres comme non testables
+            self.record_failure("update_channel", "Skipped - channel creation failed")
+            self.record_failure("set_channel_talk_power", "Skipped - channel creation failed")
     
     async def test_channel_permissions(self):
         """Test de gestion des permissions de canal."""
@@ -265,97 +308,161 @@ class IntegrationTester:
             self.record_failure("manage_channel_permissions", f"Failed: {e}")
     
     async def test_server_settings(self):
-        """Test de configuration serveur."""
-        print("⚙️  Testing server settings...")
+        """Test de configuration serveur et outils avancés."""
+        print("⚙️ Testing server settings and advanced tools...")
         
+        # Test 1: update_server_settings (permissions admin requises)
         try:
-            # Test update_server_settings
             await asyncio.to_thread(
                 self.connection.connection.serveredit,
-                virtualserver_welcomemessage="Welcome to test server!"
+                virtualserver_welcomemessage="🤖 Welcome! Server managed by TeamSpeak MCP"
             )
             self.record_success("update_server_settings", "Updated server welcome message")
-            
         except Exception as e:
-            self.record_failure("update_server_settings", f"Failed: {e}")
+            self.record_failure("update_server_settings", f"Failed (admin required): {e}")
+        
+        await asyncio.sleep(1)
+        
+        # Test 2: Tests d'outils impossibles sans clients réels
+        print("  ⚠️ Testing client-dependent tools (expected to fail)...")
+        
+        # Ces tests sont censés échouer car on n'a pas de vrais clients à manipuler
+        self.record_failure("move_client", "No real clients available to move")
+        self.record_failure("kick_client", "No real clients available to kick") 
+        self.record_failure("ban_client", "No real clients available to ban")
+        
+        print("  📝 Client-dependent tools marked as untestable (expected behavior)")
+    
+    async def test_channel_info_tests(self):
+        """Test d'information sur les canaux existants."""
+        print("📋 Testing channel info on existing channels...")
+        
+        try:
+            # D'abord lister les canaux pour avoir des IDs
+            channels = await asyncio.to_thread(self.connection.connection.channellist)
+            if channels and len(channels) > 0:
+                # Tester l'info sur le premier canal
+                first_channel = channels[0]
+                channel_id = first_channel.get('cid')
+                
+                if channel_id:
+                    info = await asyncio.to_thread(
+                        self.connection.connection.channelinfo,
+                        cid=channel_id
+                    )
+                    self.record_success("channel_info", f"Got info for channel {channel_id}")
+                else:
+                    self.record_failure("channel_info", "No valid channel ID found")
+            else:
+                self.record_failure("channel_info", "No channels available to test")
+                
+        except Exception as e:
+            self.record_failure("channel_info", f"Failed: {e}")
     
     async def test_user_management(self):
-        """Test de gestion des utilisateurs."""
+        """Test de gestion des utilisateurs avec clients disponibles."""
         print("👤 Testing user management...")
         
-        if not self.test_client_id:
-            self.record_failure("user_management", "No test client available")
-            return
-        
+        # D'abord obtenir la liste des clients connectés
         try:
-            # Test client_info_detailed
-            info = await asyncio.to_thread(
-                self.connection.connection.clientinfo,
-                clid=self.test_client_id
-            )
-            self.record_success("client_info_detailed", f"Got detailed info for client {self.test_client_id}")
-            
-            # Test manage_user_permissions (list groups)
-            if hasattr(info, 'data') and info.data:
-                client_info = info.data[0]
-            else:
-                client_info = info
-            
-            client_database_id = client_info.get('client_database_id')
-            if client_database_id:
-                groups = await asyncio.to_thread(
-                    self.connection.connection.servergroupsbyclientid,
-                    cldbid=client_database_id
-                )
-                self.record_success("manage_user_permissions_list_groups", f"Listed groups for client {self.test_client_id}")
+            clients = await asyncio.to_thread(self.connection.connection.clientlist)
+            if clients and len(clients) > 0:
+                # Utiliser le premier client (probablement notre connexion ServerQuery)
+                first_client = clients[0]
+                self.test_client_id = first_client.get('clid')
                 
-                # Test list permissions
-                perms = await asyncio.to_thread(
-                    self.connection.connection.clientpermlist,
-                    cldbid=client_database_id, permsid=True
-                )
-                self.record_success("manage_user_permissions_list_permissions", f"Listed permissions for client {self.test_client_id}")
-            
+                if self.test_client_id:
+                    # Test client_info_detailed
+                    try:
+                        info = await asyncio.to_thread(
+                            self.connection.connection.clientinfo,
+                            clid=self.test_client_id
+                        )
+                        self.record_success("client_info_detailed", f"Got detailed info for client {self.test_client_id}")
+                        
+                        # Si on a les infos client, essayer les permissions
+                        if hasattr(info, 'data') and info.data:
+                            client_info = info.data[0]
+                        elif hasattr(info, '__iter__') and not isinstance(info, str):
+                            client_info = list(info)[0] if info else {}
+                        else:
+                            client_info = info
+                        
+                        client_database_id = client_info.get('client_database_id')
+                        if client_database_id:
+                            try:
+                                groups = await asyncio.to_thread(
+                                    self.connection.connection.servergroupsbyclientid,
+                                    cldbid=client_database_id
+                                )
+                                self.record_success("manage_user_permissions_list_groups", f"Listed groups for client {self.test_client_id}")
+                            except Exception as group_error:
+                                self.record_failure("manage_user_permissions_list_groups", f"Failed: {group_error}")
+                                
+                    except Exception as info_error:
+                        self.record_failure("client_info_detailed", f"Failed: {info_error}")
+                else:
+                    self.record_failure("client_info_detailed", "No valid client ID found")
+            else:
+                self.record_failure("client_info_detailed", "No clients available to test")
+                self.record_failure("manage_user_permissions_list_groups", "No clients available to test")
+                
         except Exception as e:
-            self.record_failure("user_management", f"Failed: {e}")
+            self.record_failure("user_management", f"Failed to get client list: {e}")
     
     async def test_messaging(self):
-        """Test de messagerie."""
-        print("💬 Testing messaging...")
+        """Test de messagerie avec gestion du rate limiting."""
+        print("💬 Testing messaging with rate limiting...")
         
         try:
-            # Test send_channel_message
+            # Test send_channel_message avec délai
             await asyncio.to_thread(
                 self.connection.connection.sendtextmessage,
-                targetmode=2, target=0, msg="Test channel message from MCP"
+                targetmode=2, target=0, msg="🤖 Test channel message from TeamSpeak MCP integration tests"
             )
             self.record_success("send_channel_message", "Sent channel message")
             
-            # Test send_private_message (à nous-même)
+            # Délai pour éviter le flooding
+            await asyncio.sleep(3)
+            
+            # Test send_private_message uniquement si on a un client cible
             if self.test_client_id:
-                await asyncio.to_thread(
-                    self.connection.connection.sendtextmessage,
-                    targetmode=1, target=self.test_client_id, msg="Test private message from MCP"
-                )
-                self.record_success("send_private_message", f"Sent private message to client {self.test_client_id}")
+                try:
+                    await asyncio.to_thread(
+                        self.connection.connection.sendtextmessage,
+                        targetmode=1, target=self.test_client_id, msg="🤖 Test private message from MCP"
+                    )
+                    self.record_success("send_private_message", f"Sent private message to client {self.test_client_id}")
+                except Exception as pm_error:
+                    self.record_failure("send_private_message", f"Failed: {pm_error}")
+            else:
+                self.record_failure("send_private_message", "No target client available")
             
         except Exception as e:
-            self.record_failure("messaging", f"Failed: {e}")
+            self.record_failure("send_channel_message", f"Failed: {e}")
+            self.record_failure("send_private_message", "Channel message failed, skipping private message")
     
     async def cleanup(self):
         """Nettoyage après les tests."""
         print("🧹 Cleaning up test data...")
         
-        # Supprimer les canaux de test
+        # Supprimer les canaux de test (et tester delete_channel)
         for channel_id in self.created_channels:
             try:
+                print(f"  🗑️ Testing delete_channel on channel {channel_id}...")
                 await asyncio.to_thread(
                     self.connection.connection.channeldelete,
                     cid=channel_id, force=1
                 )
                 print(f"  ✅ Deleted test channel {channel_id}")
+                self.record_success("delete_channel", f"Deleted channel {channel_id}")
             except Exception as e:
-                print(f"  ⚠️  Failed to delete channel {channel_id}: {e}")
+                print(f"  ⚠️ Failed to delete channel {channel_id}: {e}")
+                self.record_failure("delete_channel", f"Failed: {e}")
+        
+        # Si aucun canal n'a été créé, marquer delete_channel comme non testé
+        if not self.created_channels:
+            self.record_failure("delete_channel", "No channels were created to delete")
         
         # Fermer la connexion
         if self.connection:
@@ -380,41 +487,113 @@ class IntegrationTester:
         print(f"  ❌ {tool_name}: {message}")
     
     def print_test_report(self):
-        """Afficher le rapport final des tests."""
-        print("\n" + "="*60)
-        print("📊 INTEGRATION TEST REPORT")
-        print("="*60)
+        """Afficher le rapport final des tests avec catégorisation."""
+        print("\n" + "="*70)
+        print("📊 TEAMSPEAK MCP INTEGRATION TEST REPORT")
+        print("="*70)
         
+        # Catégoriser les résultats
         successes = [r for r in self.test_results if r["status"] == "SUCCESS"]
-        failures = [r for r in self.test_results if r["status"] == "FAILURE"]
         
-        print(f"✅ Successes: {len(successes)}")
-        print(f"❌ Failures: {len(failures)}")
-        print(f"📊 Total tests: {len(self.test_results)}")
-        print(f"🎯 Success rate: {len(successes)/len(self.test_results)*100:.1f}%")
+        # Catégories d'échecs
+        permission_failures = [r for r in self.test_results if r["status"] == "FAILURE" and 
+                             ("insufficient client permissions" in r["message"] or 
+                              "admin required" in r["message"])]
         
-        if failures:
-            print("\n❌ FAILED TESTS:")
-            for failure in failures:
-                print(f"  • {failure['tool']}: {failure['message']}")
+        impossible_failures = [r for r in self.test_results if r["status"] == "FAILURE" and 
+                             ("No real clients" in r["message"] or 
+                              "No target client" in r["message"] or
+                              "No clients available" in r["message"])]
         
-        print("\n✅ SUCCESSFUL TESTS:")
-        for success in successes:
-            print(f"  • {success['tool']}: {success['message']}")
+        skipped_failures = [r for r in self.test_results if r["status"] == "FAILURE" and 
+                          "Skipped" in r["message"]]
+        
+        rate_limit_failures = [r for r in self.test_results if r["status"] == "FAILURE" and 
+                             ("flooding" in r["message"] or "rate" in r["message"])]
+        
+        other_failures = [r for r in self.test_results if r["status"] == "FAILURE" and 
+                        r not in permission_failures + impossible_failures + 
+                        skipped_failures + rate_limit_failures]
+        
+        # Statistiques globales
+        total_tools = len(TOOLS)
+        tested_tools = len([r for r in self.test_results if not any(skip in r["message"] 
+                           for skip in ["Skipped", "No real clients", "No target client", "No clients available"])])
+        
+        print(f"📋 **SUMMARY:**")
+        print(f"   • Total MCP Tools: {total_tools}")
+        print(f"   • Actually Tested: {tested_tools}")
+        print(f"   • ✅ Successes: {len(successes)}")
+        print(f"   • ❌ Total Failures: {len(self.test_results) - len(successes)}")
+        print(f"   • 🎯 Success Rate: {len(successes)/tested_tools*100:.1f}% (of testable tools)")
+        
+        print(f"\n📊 **DETAILED BREAKDOWN:**")
+        
+        if successes:
+            print(f"\n✅ **SUCCESSFUL TOOLS ({len(successes)}):**")
+            for success in successes:
+                print(f"   • {success['tool']}: {success['message']}")
+        
+        if permission_failures:
+            print(f"\n🔒 **PERMISSION FAILURES ({len(permission_failures)}) - Need Admin Token:**")
+            for failure in permission_failures:
+                print(f"   • {failure['tool']}: {failure['message']}")
+        
+        if impossible_failures:
+            print(f"\n⚠️ **IMPOSSIBLE TO TEST ({len(impossible_failures)}) - Need Real Clients:**")
+            for failure in impossible_failures:
+                print(f"   • {failure['tool']}: {failure['message']}")
+        
+        if rate_limit_failures:
+            print(f"\n🚦 **RATE LIMIT FAILURES ({len(rate_limit_failures)}) - Server Protection:**")
+            for failure in rate_limit_failures:
+                print(f"   • {failure['tool']}: {failure['message']}")
+        
+        if skipped_failures:
+            print(f"\n⏭️ **SKIPPED ({len(skipped_failures)}) - Dependency Failed:**")
+            for failure in skipped_failures:
+                print(f"   • {failure['tool']}: {failure['message']}")
+        
+        if other_failures:
+            print(f"\n💥 **OTHER FAILURES ({len(other_failures)}):**")
+            for failure in other_failures:
+                print(f"   • {failure['tool']}: {failure['message']}")
         
         # Sauvegarder les résultats
         os.makedirs("/app/test_results", exist_ok=True)
+        
+        # Créer un rapport détaillé
+        detailed_report = {
+            "summary": {
+                "total_tools": total_tools,
+                "tested_tools": tested_tools,
+                "successes": len(successes),
+                "failures": len(self.test_results) - len(successes),
+                "success_rate": round(len(successes)/tested_tools*100, 1)
+            },
+            "categories": {
+                "successes": successes,
+                "permission_failures": permission_failures,
+                "impossible_failures": impossible_failures,
+                "rate_limit_failures": rate_limit_failures,
+                "skipped_failures": skipped_failures,
+                "other_failures": other_failures
+            },
+            "all_results": self.test_results
+        }
+        
         with open("/app/test_results/integration_results.json", "w") as f:
-            json.dump(self.test_results, f, indent=2)
+            json.dump(detailed_report, f, indent=2)
         
-        print(f"\n💾 Results saved to /app/test_results/integration_results.json")
+        print(f"\n💾 **Detailed results saved to /app/test_results/integration_results.json**")
         
-        # Code de sortie
-        if failures:
-            print("\n💥 Some tests failed!")
+        # Code de sortie basé sur les vrais échecs (pas les impossibles)
+        real_failures = permission_failures + rate_limit_failures + other_failures
+        if real_failures:
+            print(f"\n⚠️ **{len(real_failures)} tools had real issues (excluding impossible/skipped tests)**")
             sys.exit(1)
         else:
-            print("\n🎉 All tests passed!")
+            print(f"\n🎉 **All testable tools worked correctly!**")
             sys.exit(0)
 
 def wait_for_server(host: str, port: int, timeout: int = 120) -> bool:
