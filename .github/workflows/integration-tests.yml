@@ -1,0 +1,185 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run integration tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      matrix:
+        teamspeak-version: ['latest']  # Can extend to test multiple TS3 versions
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-integration-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-integration-
+            ${{ runner.os }}-buildx-
+
+      - name: Create test directories
+        run: |
+          mkdir -p tests test_results scripts
+          chmod +x scripts/run-integration-tests.sh
+
+      - name: Build test images
+        run: |
+          echo "🏗️ Building Docker images for integration tests..."
+          docker-compose -f docker-compose.test.yml build --cache-from=type=local,src=/tmp/.buildx-cache
+          
+      - name: Start TeamSpeak 3 Server
+        run: |
+          echo "🚀 Starting TeamSpeak 3 server..."
+          docker-compose -f docker-compose.test.yml up -d teamspeak3-server
+          
+      - name: Wait for TeamSpeak server
+        run: |
+          echo "⏳ Waiting for TeamSpeak server to be ready..."
+          timeout=120
+          counter=0
+          
+          while [ $counter -lt $timeout ]; do
+            if docker-compose -f docker-compose.test.yml exec -T teamspeak3-server nc -z localhost 10011 2>/dev/null; then
+              echo "✅ TeamSpeak server is ready after ${counter}s"
+              break
+            fi
+            
+            if [ $counter -eq $timeout ]; then
+              echo "❌ TeamSpeak server failed to start after ${timeout}s"
+              echo "📋 Server logs:"
+              docker-compose -f docker-compose.test.yml logs teamspeak3-server
+              exit 1
+            fi
+            
+            sleep 1
+            counter=$((counter + 1))
+          done
+
+      - name: Extract admin token
+        run: |
+          echo "🔑 Extracting TeamSpeak admin token..."
+          docker-compose -f docker-compose.test.yml up token-extractor
+          
+          if [ -f scripts/admin_token.txt ]; then
+            echo "✅ Admin token extracted successfully"
+            # Don't echo the token for security
+          else
+            echo "⚠️ No admin token found, tests will run without password"
+          fi
+
+      - name: Run integration tests
+        env:
+          TEAMSPEAK_HOST: teamspeak3-server
+          TEAMSPEAK_PORT: 10011
+          TEAMSPEAK_USER: serveradmin
+          TEAMSPEAK_SERVER_ID: 1
+          GITHUB_ACTIONS: true
+        run: |
+          echo "🧪 Running comprehensive integration tests..."
+          
+          # Set password from token if available
+          if [ -f scripts/admin_token.txt ]; then
+            export TEAMSPEAK_PASSWORD=$(cat scripts/admin_token.txt)
+          else
+            export TEAMSPEAK_PASSWORD=""
+          fi
+          
+          # Run integration tests
+          docker-compose -f docker-compose.test.yml run --rm \
+            -e TEAMSPEAK_HOST=$TEAMSPEAK_HOST \
+            -e TEAMSPEAK_PORT=$TEAMSPEAK_PORT \
+            -e TEAMSPEAK_USER=$TEAMSPEAK_USER \
+            -e TEAMSPEAK_PASSWORD="$TEAMSPEAK_PASSWORD" \
+            -e TEAMSPEAK_SERVER_ID=$TEAMSPEAK_SERVER_ID \
+            teamspeak-mcp-test integration-test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()  # Upload results even if tests fail
+        with:
+          name: integration-test-results-${{ matrix.teamspeak-version }}
+          path: |
+            test_results/
+            scripts/admin_token.txt
+          retention-days: 30
+
+      - name: Display test summary
+        if: always()
+        run: |
+          echo "📊 Integration Test Summary"
+          echo "=========================="
+          
+          if [ -f test_results/integration_results.json ]; then
+            echo "📋 Test results found:"
+            
+            # Count successes and failures
+            if command -v jq >/dev/null 2>&1; then
+              successes=$(jq '[.[] | select(.status == "SUCCESS")] | length' test_results/integration_results.json)
+              failures=$(jq '[.[] | select(.status == "FAILURE")] | length' test_results/integration_results.json)
+              total=$(jq 'length' test_results/integration_results.json)
+              
+              echo "✅ Successes: $successes"
+              echo "❌ Failures: $failures"
+              echo "📊 Total: $total"
+              echo "🎯 Success rate: $(echo "scale=1; $successes * 100 / $total" | bc)%"
+              
+              if [ $failures -gt 0 ]; then
+                echo ""
+                echo "❌ Failed tests:"
+                jq -r '.[] | select(.status == "FAILURE") | "  • \(.tool): \(.message)"' test_results/integration_results.json
+              fi
+              
+              echo ""
+              echo "✅ Successful tests:"
+              jq -r '.[] | select(.status == "SUCCESS") | "  • \(.tool): \(.message)"' test_results/integration_results.json
+            else
+              echo "📄 Raw results (install jq for better formatting):"
+              cat test_results/integration_results.json
+            fi
+          else
+            echo "❌ No test results file found"
+          fi
+
+      - name: Show container logs on failure
+        if: failure()
+        run: |
+          echo "🔍 Container logs for debugging:"
+          echo "================================"
+          echo ""
+          echo "📋 TeamSpeak 3 Server logs:"
+          docker-compose -f docker-compose.test.yml logs --tail=100 teamspeak3-server
+          echo ""
+          echo "📋 MCP Test container logs:"
+          docker-compose -f docker-compose.test.yml logs --tail=100 teamspeak-mcp-test
+          echo ""
+          echo "📋 Token extractor logs:"
+          docker-compose -f docker-compose.test.yml logs token-extractor
+
+      - name: Cleanup
+        if: always()
+        run: |
+          echo "🧹 Cleaning up test environment..."
+          docker-compose -f docker-compose.test.yml down --volumes --remove-orphans
+          docker system prune -f 

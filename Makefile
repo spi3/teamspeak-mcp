@@ -66,6 +66,23 @@ test-docker: ## Test with local Docker image
 test-ghcr: ## Test with GHCR image
 	docker run --rm --env-file .env.test $(GHCR_IMAGE):latest test
 
+test-integration: ## Run comprehensive integration tests with real TeamSpeak server
+	@echo "🧪 Running integration tests with real TeamSpeak 3 server..."
+	chmod +x scripts/run-integration-tests.sh
+	./scripts/run-integration-tests.sh
+
+test-integration-local: ## Run integration tests with local setup
+	@echo "🧪 Running integration tests locally..."
+	docker-compose -f docker-compose.test.yml down --volumes 2>/dev/null || true
+	docker-compose -f docker-compose.test.yml build
+	docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from teamspeak-mcp-test
+	docker-compose -f docker-compose.test.yml down --volumes
+
+test-integration-ci: ## Run integration tests for CI/CD
+	@echo "🤖 Running integration tests in CI mode..."
+	chmod +x scripts/run-integration-tests.sh
+	GITHUB_ACTIONS=true ./scripts/run-integration-tests.sh
+
 # === DOCKER UTILITIES ===
 shell: ## Open shell in container
 	docker run --rm -it --env-file .env $(IMAGE_NAME):latest shell

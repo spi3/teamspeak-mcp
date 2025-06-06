@@ -117,6 +117,41 @@ case "${1:-server}" in
         success "All tests passed!"
         ;;
         
+    "integration-test")
+        log "🧪 Running comprehensive integration tests..."
+        
+        # Vérifier que le fichier de test existe
+        if [ ! -f "/app/tests/test_integration.py" ]; then
+            error "Integration test file not found at /app/tests/test_integration.py"
+            exit 1
+        fi
+        
+        # Attendre que le serveur TeamSpeak soit prêt
+        if [ "$TEAMSPEAK_HOST" != "localhost" ] && [ "$TEAMSPEAK_HOST" != "127.0.0.1" ]; then
+            log "⏳ Waiting for TeamSpeak server to be ready..."
+            for i in {1..60}; do
+                if nc -z "$TEAMSPEAK_HOST" "${TEAMSPEAK_PORT:-10011}" 2>/dev/null; then
+                    success "TeamSpeak server is ready after ${i}s"
+                    break
+                fi
+                if [ $i -eq 60 ]; then
+                    error "TeamSpeak server not ready after 60 seconds"
+                    exit 1
+                fi
+                sleep 1
+            done
+        fi
+        
+        log "🚀 Starting integration tests..."
+        show_config
+        
+        # Créer le dossier de résultats
+        mkdir -p /app/test_results
+        
+        # Lancer les tests d'intégration
+        exec python3 /app/tests/test_integration.py
+        ;;
+        
     "debug")
         log "🔍 Debug mode - Full environment analysis..."
         debug_env
@@ -141,30 +176,35 @@ case "${1:-server}" in
     "help"|"--help"|"-h")
         echo "TeamSpeak MCP Docker - Available modes:" >&2
         echo "" >&2
-        echo "  server (default)  - Launch MCP server with env vars" >&2
-        echo "  server-cli        - Launch MCP server with CLI args" >&2
-        echo "  test             - Connection tests" >&2
-        echo "  debug            - Full environment analysis" >&2
-        echo "  shell|bash       - Interactive shell" >&2
-        echo "  config           - Display configuration" >&2
-        echo "  help             - This help" >&2
+        echo "  server (default)     - Launch MCP server with env vars" >&2
+        echo "  server-cli           - Launch MCP server with CLI args" >&2
+        echo "  test                 - Basic connection tests" >&2
+        echo "  integration-test     - Comprehensive tool testing" >&2
+        echo "  debug                - Full environment analysis" >&2
+        echo "  shell|bash           - Interactive shell" >&2
+        echo "  config               - Display configuration" >&2
+        echo "  help                 - This help" >&2
         echo "" >&2
         echo "Required environment variables (server mode):" >&2
-        echo "  TEAMSPEAK_HOST     - TeamSpeak server address" >&2
-        echo "  TEAMSPEAK_PASSWORD - ServerQuery password" >&2
+        echo "  TEAMSPEAK_HOST       - TeamSpeak server address" >&2
+        echo "  TEAMSPEAK_PASSWORD   - ServerQuery password" >&2
         echo "" >&2
         echo "CLI arguments (server-cli mode):" >&2
-        echo "  --host HOST        - TeamSpeak server address" >&2
-        echo "  --port PORT        - ServerQuery port (default: 10011)" >&2
-        echo "  --user USER        - ServerQuery user (default: serveradmin)" >&2
-        echo "  --password PASS    - ServerQuery password" >&2
-        echo "  --server-id ID     - Virtual server ID (default: 1)" >&2
+        echo "  --host HOST          - TeamSpeak server address" >&2
+        echo "  --port PORT          - ServerQuery port (default: 10011)" >&2
+        echo "  --user USER          - ServerQuery user (default: serveradmin)" >&2
+        echo "  --password PASS      - ServerQuery password" >&2
+        echo "  --server-id ID       - Virtual server ID (default: 1)" >&2
         echo "" >&2
         echo "Optional variables:" >&2
-        echo "  TEAMSPEAK_PORT     - ServerQuery port (default: 10011)" >&2
-        echo "  TEAMSPEAK_USER     - ServerQuery user (default: serveradmin)" >&2
-        echo "  TEAMSPEAK_SERVER_ID - Virtual server ID (default: 1)" >&2
+        echo "  TEAMSPEAK_PORT       - ServerQuery port (default: 10011)" >&2
+        echo "  TEAMSPEAK_USER       - ServerQuery user (default: serveradmin)" >&2
+        echo "  TEAMSPEAK_SERVER_ID  - Virtual server ID (default: 1)" >&2
         echo "  SKIP_CONNECTION_TEST - Skip connection tests (default: false)" >&2
+        echo "" >&2
+        echo "🧪 Integration Test Mode:" >&2
+        echo "  integration-test     - Test all 18 MCP tools with real TS3 server" >&2
+        echo "  Results saved in: /app/test_results/integration_results.json" >&2
         ;;
         
     *)
