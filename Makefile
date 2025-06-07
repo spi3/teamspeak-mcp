@@ -1,5 +1,5 @@
 # Makefile for TeamSpeak MCP
-.PHONY: help build run test stop clean logs shell docker-build docker-test docker-run docker-clean release-patch release-minor release-major setup-pypi
+.PHONY: help build run test stop clean logs shell docker-build docker-test docker-run docker-clean release-patch release-minor release-major setup-pypi diagnose-logs debug-connection test-logs help-logs
 
 # Variables
 IMAGE_NAME = teamspeak-mcp
@@ -193,6 +193,93 @@ clean-all: ## Clean everything
 up: run ## Alias for 'run'
 down: stop ## Alias for 'stop'
 version: status ## Alias for 'status'
+
+# 🔍 Diagnostic and debugging commands
+diagnose-logs: ## Diagnose TeamSpeak server logging configuration
+	@echo "🔍 Diagnosing TeamSpeak server logging..."
+	@if [ -z "$(TS_PASSWORD)" ]; then \
+		echo "❌ Error: TS_PASSWORD environment variable is required"; \
+		echo "Usage: make diagnose-logs TS_PASSWORD=your_password"; \
+		echo "Optional: TS_HOST=localhost TS_PORT=10011 TS_USER=serveradmin TS_SERVER_ID=1"; \
+		exit 1; \
+	fi
+	$(PYTHON) scripts/diagnose_logs.py \
+		--host=$(or $(TS_HOST),localhost) \
+		--port=$(or $(TS_PORT),10011) \
+		--user=$(or $(TS_USER),serveradmin) \
+		--password=$(TS_PASSWORD) \
+		--server-id=$(or $(TS_SERVER_ID),1)
+
+debug-connection: ## Test basic TeamSpeak ServerQuery connection
+	@echo "🔌 Testing TeamSpeak ServerQuery connection..."
+	@if [ -z "$(TS_PASSWORD)" ]; then \
+		echo "❌ Error: TS_PASSWORD environment variable is required"; \
+		echo "Usage: make debug-connection TS_PASSWORD=your_password"; \
+		exit 1; \
+	fi
+	@echo "Host: $(or $(TS_HOST),localhost):$(or $(TS_PORT),10011)"
+	@echo "User: $(or $(TS_USER),serveradmin)"
+	@echo "Testing connection..."
+	@timeout 10s telnet $(or $(TS_HOST),localhost) $(or $(TS_PORT),10011) || echo "❌ Connection failed"
+
+test-logs: ## Test log retrieval with different parameters
+	@echo "📋 Testing log retrieval with TeamSpeak MCP..."
+	@echo "Make sure your MCP server is running and configured"
+	@echo "Use these commands in your AI client:"
+	@echo ""
+	@echo "1. Basic logs:"
+	@echo "   view_server_logs"
+	@echo ""
+	@echo "2. Enhanced logs:"
+	@echo "   view_server_logs lines=100 reverse=false instance_log=false"
+	@echo ""
+	@echo "3. Instance logs:"
+	@echo "   get_instance_logs lines=100"
+	@echo ""
+	@echo "4. Diagnose configuration:"
+	@echo "   diagnose_log_configuration"
+	@echo ""
+	@echo "5. Configure logging:"
+	@echo "   configure_server_logging"
+
+help-logs: ## Show detailed help for log debugging
+	@echo "🆘 TeamSpeak Logs Debugging Help"
+	@echo ""
+	@echo "Common Issues and Solutions:"
+	@echo ""
+	@echo "1. 📝 Only 2-3 log lines returned:"
+	@echo "   - Check server logging configuration"
+	@echo "   - Enable more log types in TeamSpeak server settings"
+	@echo "   - Try instance logs: get_instance_logs"
+	@echo ""
+	@echo "2. ❌ No logs found:"
+	@echo "   - Verify ServerQuery permissions"
+	@echo "   - Check if logging is enabled on the server"
+	@echo "   - Restart TeamSpeak server if needed"
+	@echo ""
+	@echo "3. 🔐 Permission errors:"
+	@echo "   - Use serveradmin account"
+	@echo "   - Check query_ip_whitelist.txt"
+	@echo "   - Verify required permissions are granted"
+	@echo ""
+	@echo "4. 📊 Logs different from client interface:"
+	@echo "   - Client shows ALL events, ServerQuery only configured ones"
+	@echo "   - Enable specific log types in server settings"
+	@echo "   - Consider using real-time notifications instead"
+	@echo ""
+	@echo "Available Commands:"
+	@echo "  make diagnose-logs TS_PASSWORD=xxx     - Run automatic diagnosis"
+	@echo "  make debug-connection TS_PASSWORD=xxx  - Test basic connection"
+	@echo "  make test-logs                         - Show test commands"
+	@echo ""
+	@echo "Environment Variables:"
+	@echo "  TS_HOST=localhost      - TeamSpeak server host"
+	@echo "  TS_PORT=10011         - ServerQuery port"
+	@echo "  TS_USER=serveradmin   - ServerQuery username"
+	@echo "  TS_PASSWORD=xxx       - ServerQuery password (required)"
+	@echo "  TS_SERVER_ID=1        - Virtual server ID"
+	@echo ""
+	@echo "📖 Full documentation: docs/DEBUG_LOGS.md"
 
 # Default help
 .DEFAULT_GOAL := help 

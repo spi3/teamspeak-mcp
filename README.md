@@ -29,6 +29,12 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🖥️ **Virtual server configuration** (name, description, limits, welcome messages)
 - 👥 **User permission management** (server groups, individual permissions)
 - 📊 Comprehensive server and channel diagnostics
+- 📝 **Enhanced logging system** with:
+  - Automatic log configuration
+  - Log diagnostics
+  - Instance-level logs
+  - Advanced filtering
+  - Real-time notifications
 - ⚙️ **39 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
@@ -488,4 +494,13 @@ python -m teamspeak_mcp.server --verbose
 
 ## 📝 License
 
-MIT
+MIT License - See [LICENSE](LICENSE) for details.
+
+## 📄 License
+
+MIT License - voir [LICENSE](LICENSE) pour plus de détails.
+
+## 🤝 Contribution
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+ 
