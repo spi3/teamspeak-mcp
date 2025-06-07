@@ -723,12 +723,21 @@ async def _list_clients() -> list[TextContent]:
         raise Exception("Not connected to TeamSpeak server")
     
     try:
-        clients = await asyncio.to_thread(ts_connection.connection.clientlist)
+        response = await asyncio.to_thread(ts_connection.connection.clientlist)
+        
+        # Extract clients list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            clients = response.parsed
+        else:
+            # Fallback to container emulation
+            clients = list(response)
         
         result = "👥 **Connected clients:**\n\n"
         for client in clients:
-            result += f"• **ID {client.get('clid')}**: {client.get('client_nickname')} "
-            result += f"(Channel: {client.get('cid')})\n"
+            client_id = client.get('clid', 'N/A')
+            nickname = client.get('client_nickname', 'N/A')
+            channel_id = client.get('cid', 'N/A')
+            result += f"• **ID {client_id}**: {nickname} (Channel: {channel_id})\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -768,11 +777,20 @@ async def _list_channels() -> list[TextContent]:
         raise Exception("Not connected to TeamSpeak server")
     
     try:
-        channels = await asyncio.to_thread(ts_connection.connection.channellist)
+        response = await asyncio.to_thread(ts_connection.connection.channellist)
+        
+        # Extract channels list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            channels = response.parsed
+        else:
+            # Fallback to container emulation
+            channels = list(response)
         
         result = "📋 **Available channels:**\n\n"
         for channel in channels:
-            result += f"• **ID {channel.get('cid')}**: {channel.get('channel_name')}\n"
+            channel_id = channel.get('cid', 'N/A')
+            channel_name = channel.get('channel_name', 'N/A')
+            result += f"• **ID {channel_id}**: {channel_name}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -883,7 +901,16 @@ async def _server_info() -> list[TextContent]:
         raise Exception("Not connected to TeamSpeak server")
     
     try:
-        info = await asyncio.to_thread(ts_connection.connection.serverinfo)
+        response = await asyncio.to_thread(ts_connection.connection.serverinfo)
+        
+        # Extract the first (and usually only) result
+        if hasattr(response, 'parsed') and response.parsed:
+            info = response.parsed[0]
+        elif hasattr(response, '__getitem__'):
+            # Use container emulation
+            info = response[0]
+        else:
+            raise Exception("Unexpected response format")
         
         result = "🖥️ **TeamSpeak Server Information:**\n\n"
         result += f"• **Name**: {info.get('virtualserver_name', 'N/A')}\n"
@@ -891,6 +918,11 @@ async def _server_info() -> list[TextContent]:
         result += f"• **Platform**: {info.get('virtualserver_platform', 'N/A')}\n"
         result += f"• **Clients**: {info.get('virtualserver_clientsonline', 'N/A')}/{info.get('virtualserver_maxclients', 'N/A')}\n"
         result += f"• **Uptime**: {info.get('virtualserver_uptime', 'N/A')} seconds\n"
+        result += f"• **Port**: {info.get('virtualserver_port', 'N/A')}\n"
+        result += f"• **Created**: {info.get('virtualserver_created', 'N/A')}\n"
+        result += f"• **Auto Start**: {'Yes' if info.get('virtualserver_autostart') == '1' else 'No'}\n"
+        result += f"• **Machine ID**: {info.get('virtualserver_machine_id', 'N/A')}\n"
+        result += f"• **Unique ID**: {info.get('virtualserver_unique_identifier', 'N/A')}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -986,39 +1018,28 @@ async def _channel_info(args: dict) -> list[TextContent]:
     try:
         response = await asyncio.to_thread(ts_connection.connection.channelinfo, cid=channel_id)
         
-        # Handle TS3QueryResponse object - try different access methods
-        if hasattr(response, 'data') and response.data:
-            # If response has .data attribute (list of dicts)
-            info = response.data[0] if response.data else {}
-        elif hasattr(response, '__iter__') and not isinstance(response, str):
-            # If response is iterable (list of dicts)
-            info = list(response)[0] if response else {}
+        # Extract the first (and usually only) result
+        if hasattr(response, 'parsed') and response.parsed:
+            info = response.parsed[0]
+        elif hasattr(response, '__getitem__'):
+            # Use container emulation
+            info = response[0]
         else:
-            # If response is directly a dict-like object
-            info = response
-        
-        # Helper function to safely get values
-        def safe_get(key, default='N/A'):
-            if hasattr(info, 'get'):
-                return info.get(key, default)
-            elif hasattr(info, key):
-                return getattr(info, key, default)
-            else:
-                return default
+            raise Exception("Unexpected response format")
         
         result = "📋 **Channel Information:**\n\n"
-        result += f"• **ID**: {safe_get('cid')}\n"
-        result += f"• **Name**: {safe_get('channel_name')}\n"
-        result += f"• **Description**: {safe_get('channel_description')}\n"
-        result += f"• **Topic**: {safe_get('channel_topic')}\n"
-        result += f"• **Password Protected**: {'Yes' if safe_get('channel_flag_password') == '1' else 'No'}\n"
-        result += f"• **Max Clients**: {safe_get('channel_maxclients', 'Unlimited')}\n"
-        result += f"• **Current Clients**: {safe_get('total_clients', '0')}\n"
-        result += f"• **Talk Power Required**: {safe_get('channel_needed_talk_power', '0')}\n"
-        result += f"• **Codec**: {safe_get('channel_codec')}\n"
-        result += f"• **Codec Quality**: {safe_get('channel_codec_quality')}\n"
-        result += f"• **Type**: {'Permanent' if safe_get('channel_flag_permanent') == '1' else 'Temporary'}\n"
-        result += f"• **Order**: {safe_get('channel_order')}\n"
+        result += f"• **ID**: {info.get('cid', 'N/A')}\n"
+        result += f"• **Name**: {info.get('channel_name', 'N/A')}\n"
+        result += f"• **Description**: {info.get('channel_description', 'N/A')}\n"
+        result += f"• **Topic**: {info.get('channel_topic', 'N/A')}\n"
+        result += f"• **Password Protected**: {'Yes' if info.get('channel_flag_password') == '1' else 'No'}\n"
+        result += f"• **Max Clients**: {info.get('channel_maxclients', 'Unlimited')}\n"
+        result += f"• **Current Clients**: {info.get('total_clients', '0')}\n"
+        result += f"• **Talk Power Required**: {info.get('channel_needed_talk_power', '0')}\n"
+        result += f"• **Codec**: {info.get('channel_codec', 'N/A')}\n"
+        result += f"• **Codec Quality**: {info.get('channel_codec_quality', 'N/A')}\n"
+        result += f"• **Type**: {'Permanent' if info.get('channel_flag_permanent') == '1' else 'Temporary'}\n"
+        result += f"• **Order**: {info.get('channel_order', 'N/A')}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -1056,10 +1077,15 @@ async def _manage_channel_permissions(args: dict) -> list[TextContent]:
             result = f"✅ Permission '{permission}' removed from channel {channel_id}"
             
         elif action == "list":
-            perms = await asyncio.to_thread(
+            perms_response = await asyncio.to_thread(
                 ts_connection.connection.channelpermlist,
                 cid=channel_id, permsid=True
             )
+            
+            if hasattr(perms_response, 'parsed'):
+                perms = perms_response.parsed
+            else:
+                perms = list(perms_response)
             
             result = f"📋 **Channel {channel_id} Permissions:**\n\n"
             if perms:
@@ -1087,49 +1113,57 @@ async def _client_info_detailed(args: dict) -> list[TextContent]:
     try:
         response = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
         
-        # Handle TS3QueryResponse object - try different access methods
-        if hasattr(response, 'data') and response.data:
-            # If response has .data attribute (list of dicts)
-            info = response.data[0] if response.data else {}
-        elif hasattr(response, '__iter__') and not isinstance(response, str):
-            # If response is iterable (list of dicts)
-            info = list(response)[0] if response else {}
+        # Extract the first (and usually only) result
+        if hasattr(response, 'parsed') and response.parsed:
+            info = response.parsed[0]
+        elif hasattr(response, '__getitem__'):
+            # Use container emulation
+            info = response[0]
         else:
-            # If response is directly a dict-like object
-            info = response
-        
-        # Helper function to safely get values
-        def safe_get(key, default='N/A'):
-            if hasattr(info, 'get'):
-                return info.get(key, default)
-            elif hasattr(info, key):
-                return getattr(info, key, default)
-            else:
-                return default
+            raise Exception("Unexpected response format")
         
         result = "👤 **Client Information:**\n\n"
-        result += f"• **ID**: {safe_get('clid')}\n"
-        result += f"• **Database ID**: {safe_get('client_database_id')}\n"
-        result += f"• **Nickname**: {safe_get('client_nickname')}\n"
         
-        unique_id = safe_get('client_unique_identifier')
-        if unique_id and unique_id != 'N/A' and len(unique_id) > 32:
-            unique_id = unique_id[:32] + "..."
+        # Basic identification
+        result += f"• **ID**: {info.get('clid', 'N/A')}\n"
+        result += f"• **Database ID**: {info.get('client_database_id', 'N/A')}\n"
+        result += f"• **Nickname**: {info.get('client_nickname', 'N/A')}\n"
+        
+        # Unique identifier (truncate if too long)
+        unique_id = info.get('client_unique_identifier', 'N/A')
+        if unique_id != 'N/A' and len(str(unique_id)) > 32:
+            unique_id = str(unique_id)[:32] + "..."
         result += f"• **Unique ID**: {unique_id}\n"
         
-        result += f"• **Channel ID**: {safe_get('cid')}\n"
-        result += f"• **Talk Power**: {safe_get('client_talk_power', '0')}\n"
-        result += f"• **Client Type**: {'ServerQuery' if safe_get('client_type') == '1' else 'Regular'}\n"
-        result += f"• **Platform**: {safe_get('client_platform')}\n"
-        result += f"• **Version**: {safe_get('client_version')}\n"
-        result += f"• **Away**: {'Yes' if safe_get('client_away') == '1' else 'No'}\n"
-        result += f"• **Away Message**: {safe_get('client_away_message')}\n"
-        result += f"• **Input Muted**: {'Yes' if safe_get('client_input_muted') == '1' else 'No'}\n"
-        result += f"• **Output Muted**: {'Yes' if safe_get('client_output_muted') == '1' else 'No'}\n"
-        result += f"• **Connected Since**: {safe_get('client_created')}\n"
-        result += f"• **Last Connected**: {safe_get('client_lastconnected')}\n"
-        result += f"• **Connection Time**: {safe_get('connection_connected_time')}ms\n"
-        result += f"• **Country**: {safe_get('client_country')}\n"
+        # Location and channel
+        result += f"• **Channel ID**: {info.get('cid', 'N/A')}\n"
+        
+        # Client capabilities and status
+        result += f"• **Talk Power**: {info.get('client_talk_power', '0')}\n"
+        result += f"• **Client Type**: {'ServerQuery' if info.get('client_type') == '1' else 'Regular'}\n"
+        result += f"• **Platform**: {info.get('client_platform', 'N/A')}\n"
+        result += f"• **Version**: {info.get('client_version', 'N/A')}\n"
+        
+        # Status information
+        result += f"• **Away**: {'Yes' if info.get('client_away') == '1' else 'No'}\n"
+        result += f"• **Away Message**: {info.get('client_away_message', 'N/A')}\n"
+        
+        # Audio status
+        result += f"• **Input Muted**: {'Yes' if info.get('client_input_muted') == '1' else 'No'}\n"
+        result += f"• **Output Muted**: {'Yes' if info.get('client_output_muted') == '1' else 'No'}\n"
+        result += f"• **Input Hardware**: {'Yes' if info.get('client_input_hardware') == '1' else 'No'}\n"
+        result += f"• **Output Hardware**: {'Yes' if info.get('client_output_hardware') == '1' else 'No'}\n"
+        
+        # Timing information
+        result += f"• **Created**: {info.get('client_created', 'N/A')}\n"
+        result += f"• **Last Connected**: {info.get('client_lastconnected', 'N/A')}\n"
+        result += f"• **Connection Time**: {info.get('connection_connected_time', 'N/A')}ms\n"
+        
+        # Geographic information
+        result += f"• **Country**: {info.get('client_country', 'N/A')}\n"
+        result += f"• **IP Address**: {info.get('connection_client_ip', 'N/A')}\n"
+        result += f"• **Idle Time**: {info.get('client_idle_time', 'N/A')}ms\n"
+        result += f"• **Is Recording**: {'Yes' if info.get('client_is_recording') == '1' else 'No'}\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
@@ -1194,12 +1228,14 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
         # First, get client database ID for some operations
         client_info = None
         if action in ["list_groups", "add_permission", "remove_permission", "list_permissions"]:
-            client_info = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
-            # Handle response format
-            if hasattr(client_info, 'data') and client_info.data:
-                client_info = client_info.data[0]
-            elif hasattr(client_info, '__iter__') and not isinstance(client_info, str):
-                client_info = list(client_info)[0] if client_info else {}
+            client_info_response = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+            
+            if hasattr(client_info_response, 'parsed') and client_info_response.parsed:
+                client_info = client_info_response.parsed[0]
+            elif hasattr(client_info_response, '__getitem__'):
+                client_info = client_info_response[0]
+            else:
+                raise Exception("Could not get client info")
         
         if action == "add_group":
             if not group_id:
@@ -1227,10 +1263,15 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not client_database_id:
                 raise ValueError("Could not get client database ID")
             
-            groups = await asyncio.to_thread(
+            groups_response = await asyncio.to_thread(
                 ts_connection.connection.servergroupsbyclientid,
                 cldbid=client_database_id
             )
+            
+            if hasattr(groups_response, 'parsed'):
+                groups = groups_response.parsed
+            else:
+                groups = list(groups_response)
             
             result = f"📋 **Client {client_id} Server Groups:**\n\n"
             if groups:
@@ -1251,7 +1292,7 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             
             await asyncio.to_thread(
                 ts_connection.connection.clientaddperm,
-                cldbid=client_database_id, permsid=permission, permvalue=value, skip=skip, negate=negate
+                cldbid=client_database_id, permsid=permission, permvalue=value, permskip=skip
             )
             result = f"✅ Permission '{permission}' added to client {client_id} with value {value}"
             
@@ -1274,10 +1315,15 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not client_database_id:
                 raise ValueError("Could not get client database ID")
             
-            perms = await asyncio.to_thread(
+            perms_response = await asyncio.to_thread(
                 ts_connection.connection.clientpermlist,
                 cldbid=client_database_id, permsid=True
             )
+            
+            if hasattr(perms_response, 'parsed'):
+                perms = perms_response.parsed
+            else:
+                perms = list(perms_response)
             
             result = f"📋 **Client {client_id} Permissions:**\n\n"
             if perms:
@@ -1306,31 +1352,21 @@ async def _diagnose_permissions() -> list[TextContent]:
     try:
         whoami_response = await asyncio.to_thread(ts_connection.connection.whoami)
         
-        # Handle TS3QueryResponse object - try different access methods
-        if hasattr(whoami_response, 'data') and whoami_response.data:
-            whoami = whoami_response.data[0] if whoami_response.data else {}
-        elif hasattr(whoami_response, '__iter__') and not isinstance(whoami_response, str):
-            whoami = list(whoami_response)[0] if whoami_response else {}
+        if hasattr(whoami_response, 'parsed') and whoami_response.parsed:
+            whoami = whoami_response.parsed[0]
+        elif hasattr(whoami_response, '__getitem__'):
+            whoami = whoami_response[0]
         else:
-            whoami = whoami_response
+            raise Exception("Could not parse whoami response")
             
-        # Helper function to safely get values
-        def safe_get(obj, key, default='N/A'):
-            if hasattr(obj, 'get'):
-                return obj.get(key, default)
-            elif hasattr(obj, key):
-                return getattr(obj, key, default)
-            else:
-                return default
-        
         result += "✅ **Connexion de base** : OK\n"
-        result += f"   - Client ID: {safe_get(whoami, 'client_id')}\n"
-        result += f"   - Database ID: {safe_get(whoami, 'client_database_id')}\n"
-        result += f"   - Nickname: {safe_get(whoami, 'client_nickname')}\n"
-        result += f"   - Type: {'ServerQuery' if safe_get(whoami, 'client_type') == '1' else 'Regular'}\n\n"
+        result += f"   - Client ID: {whoami.get('client_id', 'N/A')}\n"
+        result += f"   - Database ID: {whoami.get('client_database_id', 'N/A')}\n"
+        result += f"   - Nickname: {whoami.get('client_nickname', 'N/A')}\n"
+        result += f"   - Type: {'ServerQuery' if whoami.get('client_type') == '1' else 'Regular'}\n\n"
         
         # Store client_database_id for later use
-        client_db_id = safe_get(whoami, 'client_database_id')
+        client_db_id = whoami.get('client_database_id')
         
     except Exception as e:
         result += f"❌ **Connexion de base** : ÉCHEC\n   Erreur: {e}\n\n"
@@ -1364,18 +1400,15 @@ async def _diagnose_permissions() -> list[TextContent]:
             try:
                 groups_response = await asyncio.to_thread(ts_connection.connection.servergroupsbyclientid, cldbid=client_db_id)
                 
-                # Handle response format
-                if hasattr(groups_response, 'data') and groups_response.data:
-                    groups = groups_response.data
-                elif hasattr(groups_response, '__iter__') and not isinstance(groups_response, str):
-                    groups = list(groups_response)
+                if hasattr(groups_response, 'parsed'):
+                    groups = groups_response.parsed
                 else:
-                    groups = [groups_response] if groups_response else []
+                    groups = list(groups_response)
                 
                 result += f"✅ **Groupes serveur** : OK\n"
                 for group in groups[:3]:  # Limit to first 3 groups
-                    group_name = safe_get(group, 'name', 'N/A')
-                    group_id = safe_get(group, 'sgid', 'N/A')
+                    group_name = group.get('name', 'N/A')
+                    group_id = group.get('sgid', 'N/A')
                     result += f"   - {group_name} (ID: {group_id})\n"
                     
             except Exception as e:
