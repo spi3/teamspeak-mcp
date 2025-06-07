@@ -892,6 +892,23 @@ TOOLS = [
                     "type": "integer",
                     "description": "Unix timestamp for log entries to (optional)",
                 },
+                "complete_mode": {
+                    "type": "boolean",
+                    "description": "Enable complete mode - retrieve ALL logs by paginating automatically (default: false)",
+                    "default": False,
+                },
+                "max_iterations": {
+                    "type": "integer",
+                    "description": "Maximum pagination iterations in complete mode (default: 1000, protection against infinite loops)",
+                    "default": 1000,
+                    "minimum": 1,
+                    "maximum": 10000,
+                },
+                "enhanced_debug": {
+                    "type": "boolean",
+                    "description": "Enable enhanced debugging information (default: false)",
+                    "default": False,
+                },
             },
             "required": [],
             "additionalProperties": False,
@@ -2461,101 +2478,280 @@ async def _view_server_logs(args: dict) -> list[TextContent]:
     reverse = args.get("reverse", True)
     instance_log = args.get("instance_log", False)
     begin_pos = args.get("begin_pos")
-    
-    # New parameters for better log filtering
-    log_level = args.get("log_level")  # 1=ERROR, 2=WARNING, 3=DEBUG, 4=INFO
-    timestamp_from = args.get("timestamp_from")  # Unix timestamp
-    timestamp_to = args.get("timestamp_to")    # Unix timestamp
-    
+    log_level = args.get("log_level")
+    timestamp_from = args.get("timestamp_from")
+    timestamp_to = args.get("timestamp_to")
+    complete_mode = args.get("complete_mode", False)
+    max_iterations = args.get("max_iterations", 1000)
+    enhanced_debug = args.get("enhanced_debug", False)
+
     try:
-        kwargs = {}
-        if lines:
-            kwargs['lines'] = lines
-        if reverse is not None:
-            kwargs['reverse'] = 1 if reverse else 0
-        if instance_log:
-            kwargs['instance'] = 1
-        if begin_pos:
-            kwargs['begin_pos'] = begin_pos
-        
-        # Try enhanced parameters (may not be supported on all TS versions)
-        if log_level:
-            kwargs['loglevel'] = log_level
-        if timestamp_from:
-            kwargs['timestamp_begin'] = timestamp_from
-        if timestamp_to:
-            kwargs['timestamp_end'] = timestamp_to
+        if complete_mode:
+            # Mode complet avec pagination automatique
+            return await _view_server_logs_complete_impl(
+                lines, reverse, instance_log, max_iterations, enhanced_debug
+            )
+        elif enhanced_debug:
+            # Mode debug amélioré
+            return await _view_server_logs_enhanced_impl(
+                lines, reverse, instance_log, begin_pos, enhanced_debug
+            )
+        else:
+            # Mode standard amélioré
+            kwargs = {}
+            if lines:
+                kwargs['lines'] = lines
+            if reverse is not None:
+                kwargs['reverse'] = 1 if reverse else 0
+            if instance_log:
+                kwargs['instance'] = 1
+            if begin_pos:
+                kwargs['begin_pos'] = begin_pos
             
-        logger.info(f"Executing logview with parameters: {kwargs}")
-        response = await asyncio.to_thread(ts_connection.connection.logview, **kwargs)
-        
-        # Enhanced log data extraction
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0] if response.parsed else {}
-        else:
-            log_data = response[0] if response else {}
-        
-        result = "📋 **Server Logs Enhanced:**\n\n"
-        result += f"**Paramètres utilisés:** lines={lines}, reverse={reverse}, instance_log={instance_log}\n"
-        if log_level:
-            result += f"**Niveau de log:** {log_level}\n"
-        result += "\n"
-        
-        # Multiple ways to extract log entries
-        log_entries = []
-        
-        # Method 1: Standard 'l' field
-        if 'l' in log_data:
-            entries = log_data['l'].split('\\n')
-            log_entries.extend([entry.strip() for entry in entries if entry.strip()])
-        
-        # Method 2: Check for alternative fields
-        for field in ['log', 'logentry', 'entries', 'data']:
-            if field in log_data:
-                if isinstance(log_data[field], str):
-                    entries = log_data[field].split('\\n')
-                    log_entries.extend([entry.strip() for entry in entries if entry.strip()])
-                elif isinstance(log_data[field], list):
-                    log_entries.extend(log_data[field])
-        
-        # Method 3: If log_data is a list itself
-        if isinstance(log_data, list):
-            for item in log_data:
-                if isinstance(item, str):
-                    log_entries.append(item.strip())
-                elif isinstance(item, dict) and 'l' in item:
-                    entries = item['l'].split('\\n')
-                    log_entries.extend([entry.strip() for entry in entries if entry.strip()])
-        
-        # Method 4: Raw response processing if nothing else works
-        if not log_entries:
-            raw_response = str(response)
-            if '|' in raw_response:  # TeamSpeak log format has | separators
-                potential_logs = raw_response.split('\n')
-                for line in potential_logs:
-                    if '|' in line and any(level in line for level in ['INFO', 'ERROR', 'WARNING', 'DEBUG']):
-                        log_entries.append(line.strip())
-        
-        if log_entries:
-            result += f"**{len(log_entries)} entrées trouvées:**\n\n"
-            for i, entry in enumerate(log_entries[-lines:], 1):  # Take last N lines
-                if entry:
-                    result += f"**{i}.** {entry}\n"
-        else:
-            result += "❌ **Aucune entrée de log trouvée.**\n\n"
-            result += "**Données brutes reçues:**\n"
-            result += f"```\n{str(log_data)[:500]}...\n```\n"
-            result += "\n**Suggestion:** Vérifiez la configuration des logs du serveur TeamSpeak."
-        
-        # Additional debugging info
-        result += f"\n**Debug info:**\n"
-        result += f"- Type de response: {type(response)}\n"
-        result += f"- Keys disponibles: {list(log_data.keys()) if isinstance(log_data, dict) else 'Non dict'}\n"
-        result += f"- Taille des données: {len(str(log_data))} caractères\n"
-        
-        return [TextContent(type="text", text=result)]
+            # Try enhanced parameters (may not be supported on all TS versions)
+            if log_level:
+                kwargs['loglevel'] = log_level
+            if timestamp_from:
+                kwargs['timestamp_begin'] = timestamp_from
+            if timestamp_to:
+                kwargs['timestamp_end'] = timestamp_to
+                
+            logger.info(f"Executing logview with parameters: {kwargs}")
+            response = await asyncio.to_thread(ts_connection.connection.logview, **kwargs)
+            
+            # Enhanced log data extraction
+            if hasattr(response, 'parsed') and response.parsed:
+                log_data = response.parsed[0] if response.parsed else {}
+            else:
+                log_data = response[0] if response else {}
+            
+            result = "📋 **Server Logs Enhanced:**\n\n"
+            result += f"**Paramètres utilisés:** lines={lines}, reverse={reverse}, instance_log={instance_log}\n"
+            if log_level:
+                result += f"**Niveau de log:** {log_level}\n"
+            result += "\n"
+            
+            # Multiple ways to extract log entries
+            log_entries = []
+            
+            # Method 1: Standard 'l' field
+            if 'l' in log_data:
+                entries = log_data['l'].split('\\n')
+                log_entries.extend([entry.strip() for entry in entries if entry.strip()])
+            
+            # Method 2: Check for alternative fields
+            for field in ['log', 'logentry', 'entries', 'data']:
+                if field in log_data:
+                    if isinstance(log_data[field], str):
+                        entries = log_data[field].split('\\n')
+                        log_entries.extend([entry.strip() for entry in entries if entry.strip()])
+                    elif isinstance(log_data[field], list):
+                        log_entries.extend(log_data[field])
+            
+            # Method 3: If log_data is a list itself
+            if isinstance(log_data, list):
+                for item in log_data:
+                    if isinstance(item, str):
+                        log_entries.append(item.strip())
+                    elif isinstance(item, dict) and 'l' in item:
+                        entries = item['l'].split('\\n')
+                        log_entries.extend([entry.strip() for entry in entries if entry.strip()])
+            
+            # Method 4: Raw response processing if nothing else works
+            if not log_entries:
+                raw_response = str(response)
+                if '|' in raw_response:  # TeamSpeak log format has | separators
+                    potential_logs = raw_response.split('\n')
+                    for line in potential_logs:
+                        if '|' in line and any(level in line for level in ['INFO', 'ERROR', 'WARNING', 'DEBUG']):
+                            log_entries.append(line.strip())
+            
+            if log_entries:
+                result += f"**{len(log_entries)} entrées trouvées:**\n\n"
+                for i, entry in enumerate(log_entries[-lines:], 1):  # Take last N lines
+                    if entry:
+                        result += f"**{i}.** {entry}\n"
+            else:
+                result += "❌ **Aucune entrée de log trouvée.**\n\n"
+                result += "**Données brutes reçues:**\n"
+                result += f"```\n{str(log_data)[:500]}...\n```\n"
+                result += "\n**Suggestion:** Vérifiez la configuration des logs du serveur TeamSpeak."
+            
+            # Additional debugging info
+            result += f"\n**Debug info:**\n"
+            result += f"- Type de response: {type(response)}\n"
+            result += f"- Keys disponibles: {list(log_data.keys()) if isinstance(log_data, dict) else 'Non dict'}\n"
+            result += f"- Taille des données: {len(str(log_data))} caractères\n"
+            
+            return [TextContent(type="text", text=result)]
+            
     except Exception as e:
         raise Exception(f"Error retrieving server logs: {e}")
+
+async def _view_server_logs_complete_impl(lines: int, reverse: bool, instance_log: bool, 
+                                        max_iterations: int, enhanced_debug: bool) -> list[TextContent]:
+    """
+    Récupère TOUS les logs du serveur en paginant automatiquement
+    Basé sur la recherche : il faut utiliser begin_pos avec last_pos pour tout récupérer
+    """
+    import time
+    
+    all_logs = []
+    current_pos = None
+    iteration = 0
+    
+    try:
+        while iteration < max_iterations:
+            # Paramètres pour la requête logview
+            params = {
+                'lines': min(lines, 100),  # Maximum 100 lignes par requête
+                'reverse': 1 if reverse else 0,
+                'instance': 1 if instance_log else 0
+            }
+            
+            # Ajouter begin_pos seulement si on l'a (après la première requête)
+            if current_pos is not None:
+                params['begin_pos'] = current_pos
+                # Après la première requête, récupérer seulement 1 ligne à la fois
+                # pour éviter les lignes incomplètes
+                params['lines'] = 1
+            
+            # Exécuter la requête logview
+            response = await asyncio.to_thread(ts_connection.connection.logview, **params)
+            
+            # Vérifier si on a des données
+            if not hasattr(response, 'parsed') or not response.parsed:
+                break
+                
+            # Extraire les logs de cette requête
+            logs_batch = []
+            for entry in response.parsed:
+                if 'l' in entry:  # 'l' contient le texte du log
+                    logs_batch.append(entry['l'])
+            
+            # Si pas de nouveaux logs, on a fini
+            if not logs_batch:
+                break
+                
+            # Ajouter à notre collection
+            all_logs.extend(logs_batch)
+            
+            # Récupérer last_pos pour la prochaine iteration
+            if hasattr(response, 'last_pos'):
+                new_pos = getattr(response, 'last_pos', None)
+                if new_pos == 0 or new_pos == current_pos:
+                    # last_pos = 0 signifie qu'on a atteint la fin
+                    break
+                current_pos = new_pos
+            else:
+                # Pas de last_pos, on s'arrête
+                break
+                
+            iteration += 1
+            
+            # Petit délai pour éviter de spammer le serveur
+            await asyncio.sleep(0.1)
+    
+    except Exception as e:
+        # Log l'erreur mais retourne ce qu'on a déjà récupéré
+        logger.error(f"Erreur lors de la récupération des logs: {e}")
+    
+    # Formater la sortie
+    if not all_logs:
+        result = "Aucun log trouvé"
+    else:
+        # Trier les logs si nécessaire (par timestamp)
+        formatted_logs = []
+        for i, log_line in enumerate(all_logs, 1):
+            formatted_logs.append(f"**{i}.** {log_line}")
+    
+        result = f"""📋 **Server Logs Complete (Enhanced):**
+
+**Paramètres utilisés:** lines={lines}, reverse={reverse}, instance_log={instance_log}
+
+**{len(all_logs)} entrées trouvées:**
+
+{chr(10).join(formatted_logs)}
+
+**Stats de récupération:**
+- Itérations: {iteration}
+- Position finale: {current_pos}
+- Total des logs: {len(all_logs)}
+"""
+
+    return [TextContent(type="text", text=result)]
+
+async def _view_server_logs_enhanced_impl(lines: int, reverse: bool, instance_log: bool, 
+                                        begin_pos: int, enhanced_debug: bool) -> list[TextContent]:
+    """
+    Version améliorée qui gère mieux les différents cas d'erreur
+    """
+    try:
+        # Configuration de base
+        params = {
+            'lines': min(lines, 100),  # TeamSpeak limite à 100
+            'reverse': 1 if reverse else 0,
+            'instance': 1 if instance_log else 0
+        }
+        
+        if begin_pos is not None:
+            params['begin_pos'] = begin_pos
+        
+        # Exécuter la requête
+        response = await asyncio.to_thread(ts_connection.connection.logview, **params)
+        
+        # Debug info
+        debug_info = {
+            'response_type': str(type(response)),
+            'has_parsed': hasattr(response, 'parsed'),
+            'has_last_pos': hasattr(response, 'last_pos'),
+            'has_file_size': hasattr(response, 'file_size')
+        }
+        
+        # Extraire les logs
+        logs = []
+        if hasattr(response, 'parsed') and response.parsed:
+            for entry in response.parsed:
+                if isinstance(entry, dict) and 'l' in entry:
+                    logs.append(entry['l'])
+                elif isinstance(entry, str):
+                    logs.append(entry)
+        
+        # Informations de pagination
+        last_pos = getattr(response, 'last_pos', None)
+        file_size = getattr(response, 'file_size', None)
+        
+        # Formatage du résultat
+        result = f"""📋 **Server Logs Enhanced:**
+
+**Paramètres utilisés:** lines={lines}, reverse={reverse}, instance_log={instance_log}
+
+**{len(logs)} entrées trouvées:**
+
+"""
+        
+        for i, log_line in enumerate(logs, 1):
+            result += f"**{i}.** {log_line}\n"
+        
+        result += f"""
+**Debug info:**
+- Type de response: {debug_info['response_type']}
+- Has parsed: {debug_info['has_parsed']}
+- Has last_pos: {debug_info['has_last_pos']} (value: {last_pos})
+- Has file_size: {debug_info['has_file_size']} (value: {file_size})
+- Taille des données: {len(str(response))} caractères
+
+**Pagination info:**
+- Position actuelle: {begin_pos}
+- Prochaine position: {last_pos}
+- Plus de données disponibles: {'Oui' if last_pos and last_pos > 0 else 'Non'}
+"""
+        
+        return [TextContent(type="text", text=result)]
+        
+    except Exception as e:
+        result = f"❌ **Erreur lors de la récupération des logs:**\n\nErreur: {str(e)}\nType: {type(e).__name__}"
+        return [TextContent(type="text", text=result)]
 
 async def _add_log_entry(args: dict) -> list[TextContent]:
     """Add a custom entry to the server log."""
