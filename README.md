@@ -494,13 +494,5 @@ python -m teamspeak_mcp.server --verbose
 
 ## 📝 License
 
-MIT License - See [LICENSE](LICENSE) for details.
-
-## 📄 License
-
-MIT License - voir [LICENSE](LICENSE) pour plus de détails.
-
-## 🤝 Contribution
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+MIT
  

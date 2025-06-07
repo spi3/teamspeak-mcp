@@ -2912,22 +2912,23 @@ async def _get_instance_logs(args: dict) -> list[TextContent]:
             log_data = response[0] if response else {}
         
         result = "📋 **Instance Logs:**\n\n"
-        result += f"**Paramètres utilisés:** lines={lines}, reverse={reverse}\n"
+        result += f"**Parameters used:** lines={lines}, reverse={reverse}\n"
         if 'l' in log_data:
-            result += f"**{len(log_data['l'].split('\\n'))} logs trouvés:**\n\n"
-            for i, log in enumerate(log_data['l'].split('\\n'), 1):
+            entries = log_data['l'].split('\n')
+            result += f"**{len(entries)} logs found:**\n\n"
+            for i, log in enumerate(entries, 1):
                 result += f"**{i}.** {log}\n"
         else:
-            result += "❌ **Aucun log trouvé.**\n\n"
-            result += "**Données brutes reçues:**\n"
+            result += "❌ **No logs found.**\n\n"
+            result += "**Raw data received:**\n"
             result += f"```\n{str(log_data)[:500]}...\n```\n"
-            result += "\n**Suggestion:** Vérifiez la configuration des logs du serveur TeamSpeak."
+            result += "\n**Suggestion:** Check TeamSpeak server logging configuration."
         
         # Additional debugging info
         result += f"\n**Debug info:**\n"
-        result += f"- Type de response: {type(response)}\n"
-        result += f"- Keys disponibles: {list(log_data.keys()) if isinstance(log_data, dict) else 'Non dict'}\n"
-        result += f"- Taille des données: {len(str(log_data))} caractères\n"
+        result += f"- Response type: {type(response)}\n"
+        result += f"- Available keys: {list(log_data.keys()) if isinstance(log_data, dict) else 'Not dict'}\n"
+        result += f"- Data size: {len(str(log_data))} characters\n"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:
