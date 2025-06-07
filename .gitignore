@@ -50,6 +50,8 @@ scripts/dev.sh
 .env
 .env.local
 .env.*.local
+scripts/dev.env
+scripts/dev.env.example
 
 # Docker
 .docker/
