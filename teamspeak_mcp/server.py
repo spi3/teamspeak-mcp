@@ -1241,9 +1241,23 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not group_id:
                 raise ValueError("Server group ID required for add_group action")
             
+            # Get client database ID first
+            client_info_response = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+            
+            if hasattr(client_info_response, 'parsed') and client_info_response.parsed:
+                client_info = client_info_response.parsed[0]
+            elif hasattr(client_info_response, '__getitem__'):
+                client_info = client_info_response[0]
+            else:
+                raise Exception("Could not get client info")
+            
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             await asyncio.to_thread(
                 ts_connection.connection.servergroupaddclient,
-                sgid=group_id, clid=client_id
+                sgid=group_id, cldbid=client_database_id
             )
             result = f"✅ Client {client_id} added to server group {group_id}"
             
@@ -1251,9 +1265,23 @@ async def _manage_user_permissions(args: dict) -> list[TextContent]:
             if not group_id:
                 raise ValueError("Server group ID required for remove_group action")
             
+            # Get client database ID first
+            client_info_response = await asyncio.to_thread(ts_connection.connection.clientinfo, clid=client_id)
+            
+            if hasattr(client_info_response, 'parsed') and client_info_response.parsed:
+                client_info = client_info_response.parsed[0]
+            elif hasattr(client_info_response, '__getitem__'):
+                client_info = client_info_response[0]
+            else:
+                raise Exception("Could not get client info")
+            
+            client_database_id = client_info.get('client_database_id')
+            if not client_database_id:
+                raise ValueError("Could not get client database ID")
+            
             await asyncio.to_thread(
                 ts_connection.connection.servergroupdelclient,
-                sgid=group_id, clid=client_id
+                sgid=group_id, cldbid=client_database_id
             )
             result = f"✅ Client {client_id} removed from server group {group_id}"
             
