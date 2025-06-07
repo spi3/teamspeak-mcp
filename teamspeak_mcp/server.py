@@ -952,58 +952,6 @@ TOOLS = [
         },
     ),
     Tool(
-        name="diagnose_log_configuration",
-        description="Diagnose TeamSpeak server logging configuration and suggest improvements",
-        inputSchema={
-            "type": "object",
-            "properties": {},
-            "required": [],
-            "additionalProperties": False,
-        },
-    ),
-    Tool(
-        name="configure_server_logging",
-        description="Configure TeamSpeak server logging settings for better log capture",
-        inputSchema={
-            "type": "object",
-            "properties": {
-                "enable_client_connect": {
-                    "type": "boolean",
-                    "description": "Enable logging of client connections",
-                    "default": True,
-                },
-                "enable_client_disconnect": {
-                    "type": "boolean",
-                    "description": "Enable logging of client disconnections",
-                    "default": True,
-                },
-                "enable_channel_edit": {
-                    "type": "boolean",
-                    "description": "Enable logging of channel modifications",
-                    "default": True,
-                },
-                "enable_server_edit": {
-                    "type": "boolean",
-                    "description": "Enable logging of server modifications",
-                    "default": True,
-                },
-                "enable_permission_changes": {
-                    "type": "boolean",
-                    "description": "Enable logging of permission changes",
-                    "default": True,
-                },
-                "log_level": {
-                    "type": "integer",
-                    "description": "Set log level (1=ERROR, 2=WARNING, 3=DEBUG, 4=INFO)",
-                    "enum": [1, 2, 3, 4],
-                    "default": 4,
-                },
-            },
-            "required": [],
-            "additionalProperties": False,
-        },
-    ),
-    Tool(
         name="get_instance_logs",
         description="Get instance-level logs instead of virtual server logs",
         inputSchema={
@@ -1148,10 +1096,6 @@ async def run_server():
                 return await _create_server_snapshot()
             elif name == "deploy_server_snapshot":
                 return await _deploy_server_snapshot(arguments)
-            elif name == "diagnose_log_configuration":
-                return await _diagnose_log_configuration()
-            elif name == "configure_server_logging":
-                return await _configure_server_logging(arguments)
             elif name == "get_instance_logs":
                 return await _get_instance_logs(arguments)
             else:
@@ -2716,174 +2660,6 @@ async def _deploy_server_snapshot(args: dict) -> list[TextContent]:
     except Exception as e:
         raise Exception(f"Error deploying server snapshot: {e}")
 
-async def _diagnose_log_configuration() -> list[TextContent]:
-    """Diagnose TeamSpeak server logging configuration and suggest improvements."""
-    if not ts_connection.is_connected():
-        raise Exception("Not connected to TeamSpeak server")
-    
-    result = "🔍 **Diagnose TeamSpeak Server Logging Configuration**\n\n"
-    
-    # Test 1: Check if logging is enabled
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Logging is enabled**\n"
-        else:
-            result += "❌ **Logging is disabled**\n"
-    except Exception as e:
-        result += f"❌ **Logging check failed**: {e}\n"
-    
-    # Test 2: Check log level
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=1)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Log level is set to ERROR**\n"
-        else:
-            result += "❌ **Log level is not set to ERROR**\n"
-    except Exception as e:
-        result += f"❌ **Log level check failed**: {e}\n"
-    
-    # Test 3: Check if client connections are logged
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=2)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Client connections are logged**\n"
-        else:
-            result += "❌ **Client connections are not logged**\n"
-    except Exception as e:
-        result += f"❌ **Client connection logging check failed**: {e}\n"
-    
-    # Test 4: Check if client disconnections are logged
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=3)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Client disconnections are logged**\n"
-        else:
-            result += "❌ **Client disconnections are not logged**\n"
-    except Exception as e:
-        result += f"❌ **Client disconnection logging check failed**: {e}\n"
-    
-    # Test 5: Check if channel modifications are logged
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=4)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Channel modifications are logged**\n"
-        else:
-            result += "❌ **Channel modifications are not logged**\n"
-    except Exception as e:
-        result += f"❌ **Channel modification logging check failed**: {e}\n"
-    
-    # Test 6: Check if server modifications are logged
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=5)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Server modifications are logged**\n"
-        else:
-            result += "❌ **Server modifications are not logged**\n"
-    except Exception as e:
-        result += f"❌ **Server modification logging check failed**: {e}\n"
-    
-    # Test 7: Check if permission changes are logged
-    try:
-        response = await asyncio.to_thread(ts_connection.connection.logview, lines=1, loglevel=6)
-        
-        if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0]
-        else:
-            log_data = response[0] if response else {}
-        
-        if 'l' in log_data:
-            result += "✅ **Permission changes are logged**\n"
-        else:
-            result += "❌ **Permission changes are not logged**\n"
-    except Exception as e:
-        result += f"❌ **Permission change logging check failed**: {e}\n"
-    
-    result += "\n**🔧 Suggestions for Improvement:**\n\n"
-    result += "1. **Enable Logging**: Ensure that logging is enabled on the TeamSpeak server.\n"
-    result += "2. **Set Log Level**: Set the log level to ERROR to capture critical issues.\n"
-    result += "3. **Log Client Connections**: Enable logging of client connections to track user activity.\n"
-    result += "4. **Log Client Disconnections**: Enable logging of client disconnections to track user activity.\n"
-    result += "5. **Log Channel Modifications**: Enable logging of channel modifications to track changes.\n"
-    result += "6. **Log Server Modifications**: Enable logging of server modifications to track changes.\n"
-    result += "7. **Log Permission Changes**: Enable logging of permission changes to track changes.\n\n"
-    result += "These steps will help you capture important information about your TeamSpeak server's operation and performance."
-    
-    return [TextContent(type="text", text=result)]
-
-async def _configure_server_logging(args: dict) -> list[TextContent]:
-    """Configure TeamSpeak server logging settings for better log capture."""
-    if not ts_connection.is_connected():
-        raise Exception("Not connected to TeamSpeak server")
-    
-    enable_client_connect = args.get("enable_client_connect", True)
-    enable_client_disconnect = args.get("enable_client_disconnect", True)
-    enable_channel_edit = args.get("enable_channel_edit", True)
-    enable_server_edit = args.get("enable_server_edit", True)
-    enable_permission_changes = args.get("enable_permission_changes", True)
-    log_level = args.get("log_level", 4)
-    
-    try:
-        kwargs = {}
-        if enable_client_connect:
-            kwargs['log_client_connect'] = 1
-        if enable_client_disconnect:
-            kwargs['log_client_disconnect'] = 1
-        if enable_channel_edit:
-            kwargs['log_channel_edit'] = 1
-        if enable_server_edit:
-            kwargs['log_server_edit'] = 1
-        if enable_permission_changes:
-            kwargs['log_permission_changes'] = 1
-        if log_level:
-            kwargs['loglevel'] = log_level
-        
-        await asyncio.to_thread(ts_connection.connection.logconfig, **kwargs)
-        
-        result = "✅ TeamSpeak server logging settings updated successfully\n"
-        result += f"📝 Modified properties: {', '.join(kwargs.keys())}\n"
-        result += f"🔧 Log level: {log_level}\n"
-        
-        return [TextContent(type="text", text=result)]
-    except Exception as e:
-        raise Exception(f"Error configuring server logging: {e}")
-
 async def _get_instance_logs(args: dict) -> list[TextContent]:
     """Get instance-level logs instead of virtual server logs."""
     if not ts_connection.is_connected():
@@ -2894,41 +2670,52 @@ async def _get_instance_logs(args: dict) -> list[TextContent]:
     begin_pos = args.get("begin_pos")
     
     try:
-        kwargs = {}
-        if lines:
-            kwargs['lines'] = lines
-        if reverse is not None:
-            kwargs['reverse'] = 1 if reverse else 0
-        if begin_pos:
-            kwargs['begin_pos'] = begin_pos
+        kwargs = {
+            "lines": lines,
+            "reverse": 1 if reverse else 0,
+            "instance": 1  # This requests instance logs instead of virtual server logs
+        }
         
-        logger.info(f"Executing instance_logview with parameters: {kwargs}")
-        response = await asyncio.to_thread(ts_connection.connection.instance_logview, **kwargs)
+        if begin_pos is not None:
+            kwargs["begin_pos"] = begin_pos
         
-        # Enhanced log data extraction
+        response = await asyncio.to_thread(ts_connection.connection.logview, **kwargs)
+        
+        result = f"📋 **TeamSpeak Instance Logs (last {lines} entries)**\n\n"
+        
         if hasattr(response, 'parsed') and response.parsed:
-            log_data = response.parsed[0] if response.parsed else {}
+            log_data = response.parsed[0]
+            if 'l' in log_data:
+                # Split log entries by newlines
+                log_lines = log_data['l'].split('\\n')
+                log_lines = [line.strip() for line in log_lines if line.strip()]
+                
+                if log_lines:
+                    result += f"🔍 Found {len(log_lines)} log entries:\n\n"
+                    for i, line in enumerate(log_lines, 1):
+                        # Basic formatting to make logs more readable
+                        if '|' in line:
+                            parts = line.split('|', 3)
+                            if len(parts) >= 3:
+                                timestamp = parts[0].strip()
+                                level = parts[1].strip()
+                                message = '|'.join(parts[2:]).strip()
+                                result += f"**{i}.** `{timestamp}` [{level}] {message}\n"
+                            else:
+                                result += f"**{i}.** {line}\n"
+                        else:
+                            result += f"**{i}.** {line}\n"
+                else:
+                    result += "ℹ️ No log entries found"
+            else:
+                result += "❌ No log data received from server"
         else:
-            log_data = response[0] if response else {}
+            result += "❌ No response data received"
         
-        result = "📋 **Instance Logs:**\n\n"
-        result += f"**Parameters used:** lines={lines}, reverse={reverse}\n"
-        if 'l' in log_data:
-            entries = log_data['l'].split('\n')
-            result += f"**{len(entries)} logs found:**\n\n"
-            for i, log in enumerate(entries, 1):
-                result += f"**{i}.** {log}\n"
-        else:
-            result += "❌ **No logs found.**\n\n"
-            result += "**Raw data received:**\n"
-            result += f"```\n{str(log_data)[:500]}...\n```\n"
-            result += "\n**Suggestion:** Check TeamSpeak server logging configuration."
-        
-        # Additional debugging info
-        result += f"\n**Debug info:**\n"
-        result += f"- Response type: {type(response)}\n"
-        result += f"- Available keys: {list(log_data.keys()) if isinstance(log_data, dict) else 'Not dict'}\n"
-        result += f"- Data size: {len(str(log_data))} characters\n"
+        result += f"\n\n💡 **Tip**: Use different parameters to filter results:\n"
+        result += f"- `lines`: Number of entries (1-100)\n"
+        result += f"- `reverse`: true for newest first, false for oldest first\n"
+        result += f"- `begin_pos`: Starting position in log file"
         
         return [TextContent(type="text", text=result)]
     except Exception as e:

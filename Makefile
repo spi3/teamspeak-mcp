@@ -236,11 +236,8 @@ test-logs: ## Test log retrieval with different parameters
 	@echo "3. Instance logs:"
 	@echo "   get_instance_logs lines=100"
 	@echo ""
-	@echo "4. Diagnose configuration:"
-	@echo "   diagnose_log_configuration"
-	@echo ""
-	@echo "5. Configure logging:"
-	@echo "   configure_server_logging"
+	@echo "4. Add custom log entry:"
+	@echo "   add_log_entry log_level=4 message=\"Test entry from MCP\""
 
 help-logs: ## Show detailed help for log debugging
 	@echo "🆘 TeamSpeak Logs Debugging Help"
