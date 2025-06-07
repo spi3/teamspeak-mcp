@@ -541,6 +541,403 @@ TOOLS = [
             "additionalProperties": False,
         },
     ),
+    # Nouveaux outils - Gestion des groupes serveur
+    Tool(
+        name="list_server_groups",
+        description="List all server groups available on the virtual server",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="assign_client_to_group",
+        description="Add or remove a client from a server group",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "client_database_id": {
+                    "type": "integer",
+                    "description": "Client database ID to modify group membership for",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["add", "remove"],
+                },
+                "group_id": {
+                    "type": "integer",
+                    "description": "Server group ID to add/remove client from",
+                },
+            },
+            "required": ["client_database_id", "action", "group_id"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="create_server_group",
+        description="Create a new server group with specified name and type",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "description": "Name for the new server group",
+                },
+                "type": {
+                    "type": "integer",
+                    "description": "Group type (0=template, 1=regular, 2=query, default: 1)",
+                    "default": 1,
+                },
+            },
+            "required": ["name"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="manage_server_group_permissions",
+        description="Add, remove or list permissions for a server group",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "group_id": {
+                    "type": "integer",
+                    "description": "Server group ID to modify permissions for",
+                },
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["add", "remove", "list"],
+                },
+                "permission": {
+                    "type": "string",
+                    "description": "Permission name (required for add/remove actions)",
+                },
+                "value": {
+                    "type": "integer",
+                    "description": "Permission value (required for add action)",
+                },
+                "skip": {
+                    "type": "boolean",
+                    "description": "Skip flag for permission (optional, default: false)",
+                    "default": False,
+                },
+                "negate": {
+                    "type": "boolean",
+                    "description": "Negate flag for permission (optional, default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["group_id", "action"],
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Gestion des bans et modération
+    Tool(
+        name="list_bans",
+        description="List all active ban rules on the virtual server",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="manage_ban_rules",
+        description="Create, delete or manage ban rules",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["add", "delete", "delete_all"],
+                },
+                "ban_id": {
+                    "type": "integer",
+                    "description": "Ban ID (required for delete action)",
+                },
+                "ip": {
+                    "type": "string",
+                    "description": "IP address pattern to ban (optional for add action)",
+                },
+                "name": {
+                    "type": "string",
+                    "description": "Name pattern to ban (optional for add action)",
+                },
+                "uid": {
+                    "type": "string",
+                    "description": "Client unique identifier to ban (optional for add action)",
+                },
+                "time": {
+                    "type": "integer",
+                    "description": "Ban duration in seconds (0 = permanent, default: 0)",
+                    "default": 0,
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Ban reason (optional)",
+                    "default": "Banned by AI",
+                },
+            },
+            "required": ["action"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="list_complaints",
+        description="List complaints on the virtual server",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "target_client_database_id": {
+                    "type": "integer",
+                    "description": "Target client database ID to filter complaints (optional)",
+                },
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Recherche et utilitaires
+    Tool(
+        name="search_clients",
+        description="Search for clients by name pattern or unique identifier",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Search pattern for client name or UID",
+                },
+                "search_by_uid": {
+                    "type": "boolean",
+                    "description": "Search by unique identifier instead of name (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["pattern"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="find_channels",
+        description="Search for channels by name pattern",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "pattern": {
+                    "type": "string",
+                    "description": "Search pattern for channel name",
+                },
+            },
+            "required": ["pattern"],
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Tokens et privilèges
+    Tool(
+        name="list_privilege_tokens",
+        description="List all privilege keys/tokens available on the server",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="create_privilege_token",
+        description="Create a new privilege key/token for server or channel group access",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "token_type": {
+                    "type": "integer",
+                    "description": "Token type (0=server group, 1=channel group)",
+                    "enum": [0, 1],
+                },
+                "group_id": {
+                    "type": "integer",
+                    "description": "Server group ID (for token_type=0) or channel group ID (for token_type=1)",
+                },
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID (required for channel group tokens when token_type=1)",
+                },
+                "description": {
+                    "type": "string",
+                    "description": "Optional description for the token",
+                },
+                "custom_set": {
+                    "type": "string",
+                    "description": "Optional custom client properties set (format: ident=value|ident=value)",
+                },
+            },
+            "required": ["token_type", "group_id"],
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Transfert de fichiers
+    Tool(
+        name="list_files",
+        description="List files in a channel's file repository",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID to list files for",
+                },
+                "path": {
+                    "type": "string",
+                    "description": "Directory path to list (default: root '/')",
+                    "default": "/",
+                },
+                "channel_password": {
+                    "type": "string",
+                    "description": "Channel password if required (optional)",
+                },
+            },
+            "required": ["channel_id"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="get_file_info",
+        description="Get detailed information about a specific file in a channel",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "integer",
+                    "description": "Channel ID containing the file",
+                },
+                "file_path": {
+                    "type": "string",
+                    "description": "Full path to the file",
+                },
+                "channel_password": {
+                    "type": "string",
+                    "description": "Channel password if required (optional)",
+                },
+            },
+            "required": ["channel_id", "file_path"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="manage_file_permissions",
+        description="List active file transfers and manage file transfer permissions",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "description": "Action to perform",
+                    "enum": ["list_transfers", "stop_transfer"],
+                },
+                "transfer_id": {
+                    "type": "integer",
+                    "description": "File transfer ID (required for stop_transfer action)",
+                },
+                "delete_partial": {
+                    "type": "boolean",
+                    "description": "Delete partial file when stopping transfer (default: false)",
+                    "default": False,
+                },
+            },
+            "required": ["action"],
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Logs et monitoring
+    Tool(
+        name="view_server_logs",
+        description="View recent entries from the virtual server log",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "lines": {
+                    "type": "integer",
+                    "description": "Number of log lines to retrieve (1-100, default: 50)",
+                    "default": 50,
+                    "minimum": 1,
+                    "maximum": 100,
+                },
+                "reverse": {
+                    "type": "boolean",
+                    "description": "Show logs in reverse order (newest first, default: true)",
+                    "default": True,
+                },
+                "instance_log": {
+                    "type": "boolean",
+                    "description": "Show instance log instead of virtual server log (default: false)",
+                    "default": False,
+                },
+                "begin_pos": {
+                    "type": "integer",
+                    "description": "Starting position in log file (optional)",
+                },
+            },
+            "required": [],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="add_log_entry",
+        description="Add a custom entry to the server log",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "log_level": {
+                    "type": "integer",
+                    "description": "Log level (1=ERROR, 2=WARNING, 3=DEBUG, 4=INFO)",
+                    "enum": [1, 2, 3, 4],
+                },
+                "message": {
+                    "type": "string",
+                    "description": "Log message to add",
+                },
+            },
+            "required": ["log_level", "message"],
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="get_connection_info",
+        description="Get detailed connection information for the virtual server",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+    # Nouveaux outils - Snapshots et backup
+    Tool(
+        name="create_server_snapshot",
+        description="Create a snapshot of the virtual server configuration",
+        inputSchema={
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+    ),
+    Tool(
+        name="deploy_server_snapshot",
+        description="Deploy/restore a server configuration from a snapshot",
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "snapshot_data": {
+                    "type": "string",
+                    "description": "Snapshot data to deploy (from create_server_snapshot)",
+                },
+            },
+            "required": ["snapshot_data"],
+            "additionalProperties": False,
+        },
+    ),
 ]
 
 class TeamSpeakMCPServer:
@@ -621,6 +1018,44 @@ async def run_server():
                 return await _manage_user_permissions(arguments)
             elif name == "diagnose_permissions":
                 return await _diagnose_permissions()
+            elif name == "list_server_groups":
+                return await _list_server_groups()
+            elif name == "assign_client_to_group":
+                return await _assign_client_to_group(arguments)
+            elif name == "create_server_group":
+                return await _create_server_group(arguments)
+            elif name == "manage_server_group_permissions":
+                return await _manage_server_group_permissions(arguments)
+            elif name == "list_bans":
+                return await _list_bans()
+            elif name == "manage_ban_rules":
+                return await _manage_ban_rules(arguments)
+            elif name == "list_complaints":
+                return await _list_complaints(arguments)
+            elif name == "search_clients":
+                return await _search_clients(arguments)
+            elif name == "find_channels":
+                return await _find_channels(arguments)
+            elif name == "list_privilege_tokens":
+                return await _list_privilege_tokens()
+            elif name == "create_privilege_token":
+                return await _create_privilege_token(arguments)
+            elif name == "list_files":
+                return await _list_files(arguments)
+            elif name == "get_file_info":
+                return await _get_file_info(arguments)
+            elif name == "manage_file_permissions":
+                return await _manage_file_permissions(arguments)
+            elif name == "view_server_logs":
+                return await _view_server_logs(arguments)
+            elif name == "add_log_entry":
+                return await _add_log_entry(arguments)
+            elif name == "get_connection_info":
+                return await _get_connection_info()
+            elif name == "create_server_snapshot":
+                return await _create_server_snapshot()
+            elif name == "deploy_server_snapshot":
+                return await _deploy_server_snapshot(arguments)
             else:
                 raise ValueError(f"Unknown tool: {name}")
         except Exception as e:
@@ -1462,6 +1897,664 @@ async def _diagnose_permissions() -> list[TextContent]:
     result += "Pour plus d'aide, utilisez la commande `list_clients` qui fournit un diagnostic détaillé en cas d'erreur."
     
     return [TextContent(type="text", text=result)]
+
+async def _list_server_groups() -> list[TextContent]:
+    """List all server groups available on the virtual server."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.servergrouplist)
+        
+        # Extract groups list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            groups = response.parsed
+        else:
+            # Fallback to container emulation
+            groups = list(response)
+        
+        result = "👥 **Server Groups:**\n\n"
+        for group in groups:
+            group_id = group.get('sgid', 'N/A')
+            group_name = group.get('name', 'N/A')
+            group_type = group.get('type', 'N/A')
+            result += f"• **ID {group_id}**: {group_name} (Type: {group_type})\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving server groups: {e}")
+
+async def _assign_client_to_group(args: dict) -> list[TextContent]:
+    """Add or remove a client from a server group."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    client_database_id = args["client_database_id"]
+    action = args["action"]
+    group_id = args["group_id"]
+    
+    try:
+        if action == "add":
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupaddclient,
+                sgid=group_id, cldbid=client_database_id
+            )
+            result = f"✅ Client {client_database_id} added to server group {group_id}"
+        elif action == "remove":
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupdelclient,
+                sgid=group_id, cldbid=client_database_id
+            )
+            result = f"✅ Client {client_database_id} removed from server group {group_id}"
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing client group membership: {e}")
+
+async def _create_server_group(args: dict) -> list[TextContent]:
+    """Create a new server group with specified name and type."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    name = args["name"]
+    group_type = args.get("type", 1)
+    
+    try:
+        response = await asyncio.to_thread(
+            ts_connection.connection.servergroupadd,
+            name=name, type_=group_type
+        )
+        
+        # Try to extract the new group ID from response
+        result = f"✅ Server group '{name}' created successfully"
+        if hasattr(response, 'parsed') and response.parsed:
+            group_info = response.parsed[0]
+            if 'sgid' in group_info:
+                result += f" (ID: {group_info['sgid']})"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error creating server group: {e}")
+
+async def _manage_server_group_permissions(args: dict) -> list[TextContent]:
+    """Add, remove or list permissions for a server group."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    group_id = args["group_id"]
+    action = args["action"]
+    permission = args.get("permission")
+    value = args.get("value")
+    skip = args.get("skip", False)
+    negate = args.get("negate", False)
+    
+    try:
+        if action == "add":
+            if not permission or value is None:
+                raise ValueError("Permission name and value required for add action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupaddperm,
+                sgid=group_id, permsid=permission, permvalue=value
+            )
+            result = f"✅ Permission '{permission}' added to server group {group_id} with value {value}"
+        elif action == "remove":
+            if not permission:
+                raise ValueError("Permission name required for remove action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.servergroupdelperm,
+                sgid=group_id, permsid=permission
+            )
+            result = f"✅ Permission '{permission}' removed from server group {group_id}"
+        elif action == "list":
+            perms_response = await asyncio.to_thread(
+                ts_connection.connection.servergrouppermlist,
+                sgid=group_id, permsid=True
+            )
+            
+            if hasattr(perms_response, 'parsed'):
+                perms = perms_response.parsed
+            else:
+                perms = list(perms_response)
+            
+            result = f"📋 **Server Group {group_id} Permissions:**\n\n"
+            if perms:
+                for perm in perms:
+                    perm_name = perm.get('permsid', 'N/A')
+                    perm_value = perm.get('permvalue', 'N/A')
+                    result += f"• **{perm_name}**: {perm_value}\n"
+            else:
+                result += "No custom permissions set for this server group."
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing server group permissions: {e}")
+
+async def _list_bans() -> list[TextContent]:
+    """List all active ban rules on the virtual server."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.banlist)
+        
+        # Extract bans list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            bans = response.parsed
+        else:
+            # Fallback to container emulation
+            bans = list(response)
+        
+        result = "📋 **Active Ban Rules:**\n\n"
+        for ban in bans:
+            ban_id = ban.get('banid', 'N/A')
+            ip = ban.get('ip', 'N/A')
+            name = ban.get('name', 'N/A')
+            uid = ban.get('uid', 'N/A')
+            time = ban.get('time', 'N/A')
+            reason = ban.get('reason', 'N/A')
+            result += f"• **ID**: {ban_id}\n"
+            result += f"   - IP: {ip}\n"
+            result += f"   - Name: {name}\n"
+            result += f"   - UID: {uid}\n"
+            result += f"   - Duration: {time} seconds\n"
+            result += f"   - Reason: {reason}\n\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving ban rules: {e}")
+
+async def _manage_ban_rules(args: dict) -> list[TextContent]:
+    """Create, delete or manage ban rules."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    action = args["action"]
+    ban_id = args.get("ban_id")
+    ip = args.get("ip")
+    name = args.get("name")
+    uid = args.get("uid")
+    time = args.get("time", 0)
+    reason = args.get("reason", "Banned by AI")
+    
+    try:
+        if action == "add":
+            await asyncio.to_thread(
+                ts_connection.connection.banadd,
+                ip=ip, name=name, uid=uid, time=time, reason=reason
+            )
+            result = f"✅ Ban rule added successfully"
+        elif action == "delete":
+            if not ban_id:
+                raise ValueError("Ban ID required for delete action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.bandel,
+                banid=ban_id
+            )
+            result = f"✅ Ban rule {ban_id} deleted successfully"
+        elif action == "delete_all":
+            await asyncio.to_thread(
+                ts_connection.connection.bandelall
+            )
+            result = "✅ All ban rules deleted successfully"
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing ban rules: {e}")
+
+async def _list_complaints(args: dict) -> list[TextContent]:
+    """List complaints on the virtual server."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    target_client_database_id = args.get("target_client_database_id")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.complaintlist)
+        
+        # Extract complaints list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            complaints = response.parsed
+        else:
+            # Fallback to container emulation
+            complaints = list(response)
+        
+        result = "📋 **Complaints:**\n\n"
+        for complaint in complaints:
+            complaint_id = complaint.get('complaintid', 'N/A')
+            client_database_id = complaint.get('cldbid', 'N/A')
+            reason = complaint.get('reason', 'N/A')
+            result += f"• **ID**: {complaint_id}\n"
+            result += f"   - Client ID: {client_database_id}\n"
+            result += f"   - Reason: {reason}\n\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving complaints: {e}")
+
+async def _search_clients(args: dict) -> list[TextContent]:
+    """Search for clients by name pattern or unique identifier."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    pattern = args["pattern"]
+    search_by_uid = args.get("search_by_uid", False)
+    
+    try:
+        if search_by_uid:
+            response = await asyncio.to_thread(
+                ts_connection.connection.clientdbfind,
+                pattern=pattern, uid=True
+            )
+        else:
+            response = await asyncio.to_thread(
+                ts_connection.connection.clientfind,
+                pattern=pattern
+            )
+        
+        # Extract clients list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            clients = response.parsed
+        else:
+            # Fallback to container emulation
+            clients = list(response)
+        
+        result = f"👥 **Search Results for '{pattern}':**\n\n"
+        if not clients:
+            result += "No clients found matching the pattern."
+        else:
+            for client in clients:
+                if search_by_uid:
+                    client_id = client.get('cldbid', 'N/A')
+                    nickname = client.get('client_nickname', 'N/A')
+                    result += f"• **DB ID {client_id}**: {nickname}\n"
+                else:
+                    client_id = client.get('clid', 'N/A')
+                    nickname = client.get('client_nickname', 'N/A')
+                    result += f"• **ID {client_id}**: {nickname}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error searching for clients: {e}")
+
+async def _find_channels(args: dict) -> list[TextContent]:
+    """Search for channels by name pattern."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    pattern = args["pattern"]
+    
+    try:
+        response = await asyncio.to_thread(
+            ts_connection.connection.channelfind,
+            pattern=pattern
+        )
+        
+        # Extract channels list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            channels = response.parsed
+        else:
+            # Fallback to container emulation
+            channels = list(response)
+        
+        result = f"📋 **Channel Search Results for '{pattern}':**\n\n"
+        if not channels:
+            result += "No channels found matching the pattern."
+        else:
+            for channel in channels:
+                channel_id = channel.get('cid', 'N/A')
+                channel_name = channel.get('channel_name', 'N/A')
+                result += f"• **ID {channel_id}**: {channel_name}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error searching for channels: {e}")
+
+async def _list_privilege_tokens() -> list[TextContent]:
+    """List all privilege keys/tokens available on the server."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.tokenlist)
+        
+        # Extract tokens list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            tokens = response.parsed
+        else:
+            # Fallback to container emulation
+            tokens = list(response)
+        
+        result = "🔑 **Privilege Tokens:**\n\n"
+        if not tokens:
+            result += "No privilege tokens found."
+        else:
+            for token in tokens:
+                token_key = token.get('token', 'N/A')[:20] + "..." if len(token.get('token', '')) > 20 else token.get('token', 'N/A')
+                token_type = "Server Group" if token.get('token_type') == '0' else "Channel Group" if token.get('token_type') == '1' else 'Unknown'
+                token_id1 = token.get('token_id1', 'N/A')
+                token_description = token.get('token_description', 'No description')
+                result += f"• **Token**: {token_key}\n"
+                result += f"  - Type: {token_type} (ID: {token_id1})\n"
+                result += f"  - Description: {token_description}\n\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving privilege tokens: {e}")
+
+async def _create_privilege_token(args: dict) -> list[TextContent]:
+    """Create a new privilege key/token for server or channel group access."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    token_type = args["token_type"]
+    group_id = args["group_id"]
+    channel_id = args.get("channel_id", 0)
+    description = args.get("description", "")
+    custom_set = args.get("custom_set", "")
+    
+    try:
+        response = await asyncio.to_thread(
+            ts_connection.connection.tokenadd,
+            tokentype=token_type,
+            tokenid1=group_id,
+            tokenid2=channel_id,
+            tokendescription=description,
+            tokencustomset=custom_set
+        )
+        
+        # Extract the token from response
+        if hasattr(response, 'parsed') and response.parsed:
+            token_info = response.parsed[0]
+            token = token_info.get('token', 'N/A')
+            result = f"✅ Privilege token created successfully\n"
+            result += f"🔑 **Token**: {token}"
+        else:
+            result = f"✅ Privilege token created successfully"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error creating privilege token: {e}")
+
+async def _list_files(args: dict) -> list[TextContent]:
+    """List files in a channel's file repository."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    path = args.get("path", "/")
+    channel_password = args.get("channel_password", "")
+    
+    try:
+        response = await asyncio.to_thread(
+            ts_connection.connection.ftgetfilelist,
+            cid=channel_id,
+            path=path,
+            cpw=channel_password
+        )
+        
+        # Extract files list - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed'):
+            files = response.parsed
+        else:
+            # Fallback to container emulation
+            files = list(response)
+        
+        result = f"📁 **Files in Channel {channel_id} (Path: {path}):**\n\n"
+        if not files:
+            result += "No files found in this directory."
+        else:
+            for file in files:
+                file_name = file.get('name', 'N/A')
+                file_size = file.get('size', 'N/A')
+                file_type = "Directory" if file.get('type') == '0' else "File"
+                result += f"• **{file_name}** ({file_type})\n"
+                if file_type == "File":
+                    result += f"  - Size: {file_size} bytes\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving files: {e}")
+
+async def _get_file_info(args: dict) -> list[TextContent]:
+    """Get detailed information about a specific file in a channel."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    channel_id = args["channel_id"]
+    file_path = args["file_path"]
+    channel_password = args.get("channel_password", "")
+    
+    try:
+        response = await asyncio.to_thread(
+            ts_connection.connection.ftgetfileinfo,
+            cid=channel_id,
+            name=file_path,
+            cpw=channel_password
+        )
+        
+        # Extract file info - response.parsed is a list of dictionaries
+        if hasattr(response, 'parsed') and response.parsed:
+            info = response.parsed[0]
+        else:
+            # Fallback to container emulation
+            info = response[0] if response else {}
+        
+        result = f"📄 **File Information for '{file_path}':**\n\n"
+        for key, value in info.items():
+            # Format key for better readability
+            display_key = key.replace('_', ' ').title()
+            result += f"• **{display_key}**: {value}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving file info: {e}")
+
+async def _manage_file_permissions(args: dict) -> list[TextContent]:
+    """List active file transfers and manage file transfer permissions."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    action = args["action"]
+    transfer_id = args.get("transfer_id")
+    delete_partial = args.get("delete_partial", False)
+    
+    try:
+        if action == "list_transfers":
+            response = await asyncio.to_thread(ts_connection.connection.ftlist)
+            
+            # Extract transfers list - response.parsed is a list of dictionaries
+            if hasattr(response, 'parsed'):
+                transfers = response.parsed
+            else:
+                # Fallback to container emulation
+                transfers = list(response)
+            
+            result = "📋 **Active File Transfers:**\n\n"
+            if not transfers:
+                result += "No active file transfers."
+            else:
+                for transfer in transfers:
+                    transfer_id = transfer.get('serverftfid', 'N/A')
+                    client_id = transfer.get('clid', 'N/A')
+                    file_name = transfer.get('name', 'N/A')
+                    file_size = transfer.get('size', 'N/A')
+                    status = transfer.get('status', 'N/A')
+                    result += f"• **Transfer ID {transfer_id}**:\n"
+                    result += f"  - Client: {client_id}\n"
+                    result += f"  - File: {file_name}\n"
+                    result += f"  - Size: {file_size} bytes\n"
+                    result += f"  - Status: {status}\n\n"
+        elif action == "stop_transfer":
+            if not transfer_id:
+                raise ValueError("Transfer ID required for stop_transfer action")
+            
+            await asyncio.to_thread(
+                ts_connection.connection.ftstop,
+                serverftfid=transfer_id,
+                delete=1 if delete_partial else 0
+            )
+            result = f"✅ File transfer {transfer_id} stopped"
+        else:
+            raise ValueError(f"Unknown action: {action}")
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error managing file permissions: {e}")
+
+async def _view_server_logs(args: dict) -> list[TextContent]:
+    """View recent entries from the virtual server log."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    lines = args.get("lines", 50)
+    reverse = args.get("reverse", True)
+    instance_log = args.get("instance_log", False)
+    begin_pos = args.get("begin_pos")
+    
+    try:
+        kwargs = {}
+        if lines:
+            kwargs['lines'] = lines
+        if reverse is not None:
+            kwargs['reverse'] = 1 if reverse else 0
+        if instance_log:
+            kwargs['instance'] = 1
+        if begin_pos:
+            kwargs['begin_pos'] = begin_pos
+            
+        response = await asyncio.to_thread(ts_connection.connection.logview, **kwargs)
+        
+        # The response is typically a single string containing log entries
+        if hasattr(response, 'parsed') and response.parsed:
+            log_data = response.parsed[0]
+        else:
+            log_data = response[0] if response else {}
+        
+        result = "📋 **Server Logs:**\n\n"
+        # Log entries are typically in a 'l' field as a single string
+        if 'l' in log_data:
+            log_lines = log_data['l'].split('\\n')
+            for line in log_lines[-lines:]:  # Take last N lines
+                if line.strip():
+                    result += f"• {line}\n"
+        else:
+            result += "No log entries found or log format not recognized."
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving server logs: {e}")
+
+async def _add_log_entry(args: dict) -> list[TextContent]:
+    """Add a custom entry to the server log."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    log_level = args["log_level"]
+    message = args["message"]
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.logadd,
+            loglevel=log_level,
+            message=message
+        )
+        result = f"✅ Log entry added successfully"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error adding log entry: {e}")
+
+async def _get_connection_info() -> list[TextContent]:
+    """Get detailed connection information for the virtual server."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.serverinfo)
+        
+        # Extract the first (and usually only) result
+        if hasattr(response, 'parsed') and response.parsed:
+            info = response.parsed[0]
+        elif hasattr(response, '__getitem__'):
+            # Use container emulation
+            info = response[0]
+        else:
+            raise Exception("Unexpected response format")
+        
+        result = "🖥️ **Server Connection Information:**\n\n"
+        for key, value in info.items():
+            result += f"• **{key}**: {value}\n"
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error retrieving connection info: {e}")
+
+async def _create_server_snapshot() -> list[TextContent]:
+    """Create a snapshot of the virtual server configuration."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    try:
+        response = await asyncio.to_thread(ts_connection.connection.serversnapshotcreate)
+        
+        # Extract snapshot data
+        if hasattr(response, 'parsed') and response.parsed:
+            snapshot_data = response.parsed[0]
+        else:
+            snapshot_data = response[0] if response else {}
+        
+        result = "📸 **Server Snapshot Created Successfully**\n\n"
+        result += "⚠️ **Important**: Save this snapshot data for restoration:\n\n"
+        
+        # The snapshot data is typically very long, so we'll show a preview
+        if isinstance(snapshot_data, dict):
+            for key, value in snapshot_data.items():
+                if len(str(value)) > 100:
+                    preview = str(value)[:100] + "..."
+                    result += f"• **{key}**: {preview}\n"
+                else:
+                    result += f"• **{key}**: {value}\n"
+        else:
+            # If it's a string, show preview
+            snapshot_str = str(snapshot_data)
+            if len(snapshot_str) > 500:
+                result += f"```\n{snapshot_str[:500]}...\n```\n"
+            else:
+                result += f"```\n{snapshot_str}\n```\n"
+        
+        result += "\n💡 **Tip**: Use `deploy_server_snapshot` to restore this configuration."
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error creating server snapshot: {e}")
+
+async def _deploy_server_snapshot(args: dict) -> list[TextContent]:
+    """Deploy/restore a server configuration from a snapshot."""
+    if not ts_connection.is_connected():
+        raise Exception("Not connected to TeamSpeak server")
+    
+    snapshot_data = args["snapshot_data"]
+    
+    try:
+        await asyncio.to_thread(
+            ts_connection.connection.serversnapshotdeploy,
+            virtualserver_snapshot=snapshot_data
+        )
+        result = "✅ Server snapshot deployed successfully\n\n"
+        result += "⚠️ **Note**: The server configuration has been restored from the snapshot."
+        
+        return [TextContent(type="text", text=result)]
+    except Exception as e:
+        raise Exception(f"Error deploying server snapshot: {e}")
 
 def main():
     """Entry point for setuptools."""

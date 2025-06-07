@@ -29,7 +29,7 @@ A Model Context Protocol (MCP) server for controlling TeamSpeak from AI models l
 - 🖥️ **Virtual server configuration** (name, description, limits, welcome messages)
 - 👥 **User permission management** (server groups, individual permissions)
 - 📊 Comprehensive server and channel diagnostics
-- ⚙️ **20 powerful tools** for complete TeamSpeak automation
+- ⚙️ **39 powerful tools** for complete TeamSpeak automation
 
 ## 🎯 **Integration Methods Overview**
 
@@ -315,9 +315,9 @@ Once configured, you can use these commands with Claude:
 - *"Diagnose my current permissions and connection"* → Uses `diagnose_permissions`
 - *"Check why I can't list clients"* → Uses `diagnose_permissions`
 
-## 🎯 Available Tools (20 total)
+## 🎯 Available Tools (39 total)
 
-### **Core Tools**
+### **Core Tools (12 total)**
 - `connect_to_server` : Connect to TeamSpeak server
 - `send_channel_message` : Send message to a channel
 - `send_private_message` : Send private message
@@ -331,7 +331,7 @@ Once configured, you can use these commands with Claude:
 - `ban_client` : Ban client
 - `server_info` : Get server information
 
-### **🆕 Advanced Management Tools**
+### **🆕 Advanced Management Tools (8 total)**
 - `update_channel` : Update channel properties (name, description, password, talk power, limits, etc.)
 - `set_channel_talk_power` : Quick setup for AFK/silent/moderated channels with presets
 - `channel_info` : Get detailed channel information (permissions, codec, type, etc.)
@@ -340,6 +340,39 @@ Once configured, you can use these commands with Claude:
 - `update_server_settings` : Update virtual server settings (name, welcome message, max clients, password, host message, default groups)
 - `manage_user_permissions` : Complete user permission management (add/remove server groups, set individual permissions, list assignments)
 - `diagnose_permissions` : Diagnose current connection permissions and troubleshoot issues
+
+### **🆕 Server Groups Management (4 total)**
+- `list_server_groups` : List all server groups available
+- `assign_client_to_group` : Add or remove clients from server groups
+- `create_server_group` : Create new server groups with custom settings
+- `manage_server_group_permissions` : Manage permissions for server groups
+
+### **🆕 Moderation & Bans (3 total)**
+- `list_bans` : List all active ban rules on the server
+- `manage_ban_rules` : Create, delete or manage ban rules (IP, name, UID-based)
+- `list_complaints` : List complaints against users
+
+### **🆕 Search & Discovery (2 total)**
+- `search_clients` : Search for clients by name pattern or unique identifier
+- `find_channels` : Search for channels by name pattern
+
+### **🆕 Privilege Tokens (2 total)**
+- `list_privilege_tokens` : List all privilege keys/tokens available
+- `create_privilege_token` : Create new privilege tokens for server/channel access
+
+### **🆕 File Management (3 total)**
+- `list_files` : List files in a channel's file repository
+- `get_file_info` : Get detailed information about specific files
+- `manage_file_permissions` : List and manage active file transfers
+
+### **🆕 Logs & Monitoring (3 total)**
+- `view_server_logs` : View recent entries from the server log
+- `add_log_entry` : Add custom entries to the server log
+- `get_connection_info` : Get detailed connection information
+
+### **🆕 Snapshots & Backup (2 total)**
+- `create_server_snapshot` : Create snapshots of server configuration
+- `deploy_server_snapshot` : Deploy/restore server configuration from snapshots
 
 ## 🔧 Development
 
