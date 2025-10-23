@@ -66,3 +66,5 @@ htmlcov/
 dist/
 build/
 *.egg-info/ 
+scripts/admin_token.txt
+test_results/integration_results.json
