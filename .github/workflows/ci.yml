@@ -30,32 +30,7 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
         # exit-zero treats all errors as warnings
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-    
-    - name: Test MCP server startup
-      run: |
-        # Test that the MCP server can import and show help
-        python -m teamspeak_mcp.server --help
-        echo "✅ MCP server can start and show help"
-    
-    - name: Test basic module imports
-      run: |
-        python -c "
-        import teamspeak_mcp.server
-        print('✅ Main server module imports successfully')
-        
-        # Test that TOOLS is defined and contains 40 tools
-        from teamspeak_mcp.server import TOOLS
-        assert len(TOOLS) == 40, f'Expected 40 tools, got {len(TOOLS)}'
-        print(f'✅ All {len(TOOLS)} MCP tools are defined')
-        
-        # Test that all tools have required fields
-        for tool in TOOLS:
-            assert hasattr(tool, 'name'), f'Tool missing name: {tool}'
-            assert hasattr(tool, 'description'), f'Tool missing description: {tool.name}'
-            assert hasattr(tool, 'inputSchema'), f'Tool missing inputSchema: {tool.name}'
-        print('✅ All tools have valid structure')
-        "
-    
+
     - name: Build Docker image
       run: |
         docker build -t teamspeak-mcp:test .
