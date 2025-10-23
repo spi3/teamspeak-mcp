@@ -131,6 +131,8 @@ else
     print_warning "No admin token found, using empty password"
 fi
 
+$COMPOSE_CMD -f docker-compose.test.yml build
+
 # Run the actual integration tests
 $COMPOSE_CMD -f docker-compose.test.yml run --rm \
     -e TEAMSPEAK_HOST=$TEAMSPEAK_HOST \
@@ -138,6 +140,7 @@ $COMPOSE_CMD -f docker-compose.test.yml run --rm \
     -e TEAMSPEAK_USER=$TEAMSPEAK_USER \
     -e TEAMSPEAK_PASSWORD="$TEAMSPEAK_PASSWORD" \
     -e TEAMSPEAK_SERVER_ID=$TEAMSPEAK_SERVER_ID \
+    -e MCP_MODE="streamable-http" \
     teamspeak-mcp-test integration-test
 
 # Check results

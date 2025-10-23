@@ -66,47 +66,22 @@ services:
     depends_on:
       teamspeak3-server:
         condition: service_healthy
+    ports:
+      - "8000:8000"  # Port MCP si nécessaire
     environment:
       TEAMSPEAK_HOST: teamspeak3-server
       TEAMSPEAK_PORT: 10011
       TEAMSPEAK_USER: serveradmin
-      TEAMSPEAK_PASSWORD: ""  # Will be set from TS3 server logs
+      TEAMSPEAK_PASSWORD: tch2uHfP
       TEAMSPEAK_SERVER_ID: 1
       # Test configuration
-      TEST_MODE: "true"
       LOG_LEVEL: DEBUG
+      MCP_MODE: streamable-http
     networks:
       - ts3-test-network
     volumes:
       - ./tests:/app/tests
       - ./test_results:/app/test_results
-    command: ["test"]
-
-  # Service pour extraire le token admin du serveur TS3
-  token-extractor:
-    image: alpine:latest
-    container_name: ts3-token-extractor
-    depends_on:
-      teamspeak3-server:
-        condition: service_healthy
-    volumes:
-      - ts3-test-logs:/ts3-logs:ro
-      - ./scripts:/scripts
-    networks:
-      - ts3-test-network
-    command: >
-      sh -c "
-        echo 'Extracting admin token from TS3 logs...';
-        sleep 5;
-        grep -r 'token=' /ts3-logs/ | head -1 | sed 's/.*token=\\([A-Za-z0-9+/=]*\\).*/\\1/' > /scripts/admin_token.txt;
-        if [ -s /scripts/admin_token.txt ]; then
-          echo 'Admin token extracted successfully';
-          cat /scripts/admin_token.txt;
-        else
-          echo 'Failed to extract admin token';
-          exit 1;
-        fi
-      "
 
 volumes:
   ts3-test-data:
