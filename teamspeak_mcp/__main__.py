@@ -7,4 +7,4 @@ Allows running the server with: python -m teamspeak_mcp
 from teamspeak_mcp.server import main
 
 if __name__ == "__main__":
-    main() 
+    main()
