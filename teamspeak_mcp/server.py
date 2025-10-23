@@ -86,10 +86,12 @@ def run_server():
         user=args.user,
         password=args.password,
         server_id=args.server_id,
-    ).connect()
+    )
+
+    ts_connection.connect()
 
     # Create server instance
-    mcp = FastMCP("teamspeak-mcp")
+    mcp = FastMCP("teamspeak-mcp", host="0.0.0.0", stateless_http=True)
 
     register_all_tools(mcp, ts_connection)
 
@@ -103,6 +105,10 @@ def run_server():
             mcp.run(transport="stdio")
         elif args.mcp_mode == "streamable-http":
             mcp.run(transport="streamable-http")
+        else:
+            logger.error(f"❌ Unknown MCP mode: {args.mcp_mode}")
+    except Exception as e:
+        logger.error(f"❌ Error running MCP server: {e}")
     finally:
         if ts_connection:
             ts_connection.disconnect()

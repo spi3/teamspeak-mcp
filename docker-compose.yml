@@ -8,6 +8,9 @@ services:
     image: teamspeak-mcp:latest
     container_name: teamspeak-mcp
     restart: unless-stopped
+
+    ports:
+      - "8000:8000"  # MCP port
     
     # TeamSpeak environment variables
     # Modify these values or use a .env file
@@ -17,6 +20,7 @@ services:
       - TEAMSPEAK_USER=${TEAMSPEAK_USER:-serveradmin}
       - TEAMSPEAK_PASSWORD=${TEAMSPEAK_PASSWORD}
       - TEAMSPEAK_SERVER_ID=${TEAMSPEAK_SERVER_ID:-1}
+      - MCP_MODE=${MCP_MODE:-streamable-http}
     
     # Alternative: use a .env file
     # env_file:
